@@ -1,0 +1,28 @@
+Holland Coefficients (A	B)
+4.04d6	1.33
+Reduction factor (Wind PressureDrop) Check Holland Geostropic to 10m above sea
+0.7	1.0
+Wind Drag Formula (1 - Garratt, 2 - Powell)
+1
+
+NumOfTimeSteps
+13
+Time(s) Longitude   Latitude    Radius(m)   WMax(m/s)
+0		81		11.94		80000	0	
+10800	81		11.95		80000	5	
+21600	81		11.96		80000	10	
+32400	81		11.97		80000	15	
+43200	81		11.98		80000	20	
+54000	81		11.99		80000	25	
+64800	81		12.00		80000	30	
+75600	81		12.01		80000	35	
+86400	81		12.02		80000	35	
+97200	81		12.03		80000	35	
+108000	81		12.04		80000	35	
+118800	81		12.05		80000	35	
+129600	81		12.06		80000	35	
+
+## 
+Taking B = 1.3
+This gives pdrop = 2070 Pa for Vmax = 30m/s
+

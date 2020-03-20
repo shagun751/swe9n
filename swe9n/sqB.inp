@@ -1,0 +1,32 @@
+## Time settings
+Q) Time-step (s)
+10
+Q) Simulation Time (s)
+129600
+Q) Output file interval (s)
+1800
+
+Q)Coord in lon lat? (.true./.false.)(.true. will enable coriolis force)
+.true.
+
+Q) Tau0 for GWCE
+0.1
+Q) Weights for Eta Semi-implicit (k+1, k, k-1)
+0.60	0.20	0.20
+Q) Minimum depth
+2
+Q) Depth Smoothing Iterations
+1
+
+Q) Number of OpenMP Threads
+4
+
+## Probes
+Q) Number of Probes
+5
+Q) Probe location (Lon Lat)
+81		12		!P0
+81.5	12		!P1
+81		12.5	!P2
+80.5	12		!P3
+81		11.5	!P4

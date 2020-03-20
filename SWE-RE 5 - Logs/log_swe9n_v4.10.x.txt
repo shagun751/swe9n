@@ -1,0 +1,868 @@
+swe9n_v3.1
+
+T		=	
+Amp		=	
+mesh	=
+
+dt		=	0.01s
+
+
+
+-----------------------------------------------
+Log of v5.xx.xxxx
+
+Generalised wave continuity equation
+2D code fully nonlinear 
+No run-up
+Holland wind formula
+Windstress using Cd
+-----------------------------------------------
+ 
+-v5.52
+Attempting
+	- Function for finding element for the point.
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+-v5.51
+Attempting
+	- Absorbing inlet
+	- Evaluation of d(eta)/dt done using 2 point backward diff 
+		- d(eta(k))/dt = (eta(k)-eta(k-2))/2dt
+	- The inlet forced has to be evaluated irrespective of the boundary as the boundary integral will take care of everything
+
+Observation
+	- Fails for Courant number lower than 0.1 (which is a problem) and higher than 0.3 (which is ok)
+	- The absorbing of the inlet is working fine but there is some difference between the inlet with Flather and the inlet using direct Drichlet.
+	- I want to try and place the neighbour of boundary point at courant number 1 so that the phase difference is exactly corresponding to the time-step.
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+-v5.39
+Attempting
+	- Open BC using Flather condition
+	- Evaluation of d(eta)/dt done using 2 point backward diff 
+		- d(eta(k))/dt = (eta(k)-eta(k-2))/2dt
+
+Observation
+	- Fails for Courant number lower than 0.1 (which is a problem) and higher than 0.3 (which is ok)
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+-v5.38
+Attempting
+	- Open BC using Flather condition
+	- Evaluation of d(eta)/dt done using 3 point backward diff 
+
+Observation
+	- Fails for Courant number lower than 0.1 (which is a problem) and higher than 0.3 (which is ok)
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+
+-v5.41 [Archive]
+Attempting
+	- P Q doing 3 point Adam-Moulton implicit
+		time level k+1, k, k-1
+		k+1 is predicted using Euler explicit form at k
+
+Observation
+	- Worse than the one done about k+1/2 in v5.31
+	- Discarding this approach
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+
+-v5.36 [Star]
+continuing from v5.34 where boundary integral of eddy visc terms is not evaluated
+Attempting
+	- Found closest point to bnd11p and saved in bndpNe.
+		- Will try using the value at these nodes for the open BC
+	- Created bnd13p for inlet BC
+	- botCd and smCs will noe be use inputs
+
+Trials
+	- rectC [Start] [***]		
+		- In simulation regular wave or gauss hump, wave is dissipating
+		- Dissipation is directly proportional to wave period and wave-length
+			- rectC_1kmNode_dt2s_GaussRadius050km vs rectC_1kmNode_dt2s_GaussRadius100km
+			- rectC_1kmNode_dt2s_WaveT240s_A0.2m vs rectC_1kmNode_dt2s_WaveT480s_A0.2m			
+		- Dissipation seems to be independent of amplitude for low amplitudes
+			- rectC_1kmNode_dt2s_WaveT240s_A0.2m vs
+			rectC_1kmNode_dt2s_WaveT240s_A0.1m
+
+
+Obervations [***]		
+	- The model is dissipating wave, which is inversely proportional to the wave-length
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+
+-v5.35 [Star]
+Attempting	
+	- Boundary integral function for Turbulence 
+		- Approach 1 : [App1] 
+			- Earlier did nx = shF * nxi for the boundary			
+			- I have noticed that boundaries fail even in my Bsnq code everytime they are complex
+		- Approach 2 : [App2] 
+			- Doing nx = side normal = centre node normal			
+	- Checked nonzero values at boundary linear and quad nodes by printing and zero values at non boundary nodes.
+
+Observation
+- Check case swe9n_v5.35.fscAg
+	- App1 : ErrorAfterIncludingEddyBoundaryTerms_NodeNorm
+		- Fails near Kanyakumari  after 980 mins
+	- App2 : ErrorAfterIncludingEddyBoundaryTerms_BndNorm
+		- Fails ner Adams bridge after 148 mins
+
+For now dropping the boundary integral of the viscosity as the problem seems to be due to the mesh quality. Moving on without the boundary integral of the eddy viscosity terms.
+
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+
+-v5.34
+Attempting
+	- Boundary side length calculated
+	- Boundary normals corrected by weighted using length
+		- Earlier each side was given equal weight
+	- [IMPORTANT] : Corrected the mistake in OpenMP in the GWCErh2 and bndInt fncs where I had forgotten to include some values in the PRIVATE
+		- Cannot consider the earlier codes now. Will have to correct the parallel implementation in GWCErh2 fnc
+
+Observations
+	- Runs fine without issues
+	- Made slight difference in the results due to the Pn = 0 condition and the slight change in the normal at the points.
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+
+-v5.33
+Attempting
+	- Eddy Viscosity formulation added
+	- Only domain integrals inclluded for now
+	- Smagorinsky formulation
+
+Observation
+	- Tested using the case tkBA with Gaja cyclone
+	- In v5.32, it used to fail after 26.75 hrs
+	- Now it doesnt fail.
+	- Also comparison between the wave probes in Chennai and Pondi show that there is some difference in velocity and velocity is less noisy.
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+
+-v5.32
+Attempting
+	- Courant number calculation included
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+
+-v5.31
+Attempting
+	- As mentioned in the references below, a semi implicit predictor corrector formulation of the wave continuity equation will help stabalise the solution even more.
+	- In ADCIRC semi-impicit formulation as mentioned in ref[1] below, the eta terms are made a linear combination of k+1, k and k-1 time level values in the wave continuity equation.
+	- Instead of doing implicit like ADCIRC, we will try to do predictor corrector like ref[2]
+	- For momentum equation still keeping predictor corrector about time level k+1/2 using crank Nicolson type approach.
+		P = 0.5*(P(corrected) + P(predictor))
+
+Observation
+	- Seems like the way to go now
+	- Even in SHYFEM they have spoken of this sort of formulation
+		- They talk about staggered FEM with velocity at cell centre and eta at vertices
+
+References
+[1] Luettich, Rick, JJ Westerink, and N. W. Scheffner. 1992. ADCIRC : An Advanced 3-D Circulation Model for Shelves, Coasts, and Estuaries.
+[2] Dresback, Kendra M., Randall L. Kolar, and J. Casey Dietrich. 2004. “A 2D Implicit Time-Marching Algorithm for Shallow Water Models Based on the Generalized Wave Continuity Equation.” International Journal for Numerical Methods in Fluids 45 (3): 253–274. doi:10.1002/fld.697.
+[3] SHYFEM : Shallow Water Hydrodynamics FEM
+	https://sites.google.com/site/shyfem/
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+
+-v5.21
+Continued from v5.12
+Attempting
+	- Eta is still fully explicit
+	- Predictor corrector for P Q.
+	- P Q time discretisation about time level k+1/2	
+		P = 0.5*(P(corrected) + P(predictor))
+
+Observation
+	- Major improvements in the stability of the results
+	- Stll the code fails but this is mainly due to the bathymetry
+	- Solution in stable at the boundaries unlike in previous cases
+	- The time stepping is majorly important.
+
+[***] Important:
+Refer the following papers on importance of time stepping and the difference between primitive SWE, GWCE and their various formulations done using linear triangle, quasi-bubble, lumped quadrilateral formulation
+
+[1] Lynch, Daniel R., and William G. Gray. 1979. “A Wave Equation Model for Finite Element Tidal Computations.” Computers & Fluids 7 (3): 207–228. doi:10.1016/0045-7930(79)90037-9.
+[2] Gray, William G., and Daniel R. Lynch. 1977. “Time-Stepping Schemes for Finite Element Tidal Model Computations.” Advances in Water Resources 1 (2): 83–95. doi:10.1016/0309-1708(77)90026-4.
+[3] Kolar, RL, and JJ Westerink. 2000. “A Look Back at 20 Years of GWC-Based Shallow Water Models.” … on Computational Methods in Water … 2 (2). http://www.coe.ou.edu/emgis/kolar/resources/CMWRXIIIPaper1.pdf.
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+
+-v5.15
+Continued from v5.12
+Attempting
+	- Velocity smoothing using cubic spline
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+
+-v5.14
+Attempting
+	- [Parallel] Velocity smoothing using moving average
+		mTmp1(i)=sum(p(jvf(k:k2)))/(k2-k+1)
+		- Didnt test the other looping method coz its fine
+		- Speedup from 0.210 to 0.180 (1.16x)
+		- OMP Critical not required
+
+Observation
+	- The magnitude of velocities has become 1/10 for some reason
+		- I tested that nothing is wrong with the velocities smoothing using moving average
+		- The oscillation in eta at boundaries is very high		
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+
+-v5.13
+Attempting
+	- [Serial] Velocity smoothing using moving average
+		- Slower
+			mTmp1(i)=sum(p(jvf(k:k2)))/(k2-k+1)
+		- Slightly faster
+			tmpr1=0d0        
+        	do i2=k,k2
+          		tmpr1=tmpr1+p(jvf(i2))          
+        	enddo
+        	mTmp1(i)=tmpr1/(k2-k+1)        
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+
+-v5.12
+Attempting
+	- Tried to parallelise the loops for Jx, Jy, eta, P, Q
+		- No need for OMP critical
+		- 1.2x times faster
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+
+-v5.11
+Attmepting
+	- Attempting boundary condition for velocity of normal vel = 0 and tangential as it is (as per Chitra maam thesis)
+		- Her algorithm seems ok	
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+
+-v5.10
+Attmepting
+	- Bathymetry smoothing using moving average base don the FEM connectivity.
+	- Number of iterations matter
+		- Check images in SWE-RE 5 - Logs/swe9n_v5.10 for comparison
+		- Too high number of iterations will oversmooth the bathymetry.
+		- Keeping 10 number of iterations for now.
+	- Adding a new input for the number of iterations for bathymetry smoothing
+	- Printing out the difference in the bathymetry and the percentage change in a new .vtu file
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+
+-v5.09
+Attmepting
+	- Bottom Friction using quadratic slip BC
+		- Stress/rhoW = Cd*sqrt(U^2 + V^2)*(U,V)
+			- Taking Cd = 0.015d0
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+
+-v5.08
+Attmepting
+	- Testing for sponge layer in rectB mesh
+	- Using the BOUSS2D approach
+		- Eqn = -spngC(x) eta
+		- Eqn = -spngC(x) P
+	- Applying the method to the original equation before taking the time serivative of the continuity equation.
+		- Therefore there will be spngC*Tau terms
+	- spngC = 30/T*(exp((dr/r)**2)-1)/(exp(1)-1)
+
+Observations
+	- The method does not work (for Tau0=0 or Tau=Nonzero) if the method is applied to both the continuity and momentum equations
+	- The method works well (for Tau0=0 or Tau=Nonzero) if the method is applied only to the continuity equation
+	- The values of r anf T are important
+		- Higher T, means lower 30/T and slower absorption but higher reflection.
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+
+-v5.07
+Attmepting
+	- Adding a flag for coordinates
+		- If enabled
+			- plt file has coord in lon lat
+			- convert from lon lat to cartesian
+			- enable coriolis force 
+		- If disabled
+			- plt file has coord in casrtesian
+			- no convert from lon lat to cartesian
+			- disable coriolis force 
+	- Tau0 for sclaing tau
+		- tau=Tau0*(inverse function of depth)
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+
+-v5.06
+continued from v5.04
+Attempting
+	- I noticed that in windShear calculation at very large distance where wind shear should be zero, we end up getting random values which are breaking the simulation
+		- See 'SWE-RE 5/swe9n_v5.04.bhraB'
+	- Limiting the windshear calculation to 10 x Radius
+		- Values tried were 3x, 5x
+		- Doing only for windStress and not for pressure drop
+		- In windspeed calculation there is are terms proportional to (dr x F), where F is coriolis operator. Maybe thats blowing up.
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+
+-v5.05
+Attempting
+	- Adding damping
+		-Didnt work
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+
+-v5.04
+Attempting
+	- Added Wave-probes
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+
+-v5.03
+Attempting
+	- Parallel for GWCErh2() subroutine using OpenMP
+		- Time per time step changed from 0.121 to 0.072 (1.68x speedup) on 4 cores
+		- Time within GWCErh2() changed from 0.082 to 0.031 (2.56x speedup) on 4 cores
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+
+-v5.02
+Attempting
+	- Correcting the mistake made in the surface pressure term where I forgot to multiply with the total height
+	- gD25 and gD35 move from GWCErh1 (constant) to GWCErh2 (dynamic)
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+
+-v5.01
+Attempting
+	- Jacobian inverse values now divided my determinant, as is supposed to be done, for avoiding confusion later.	
+	- Full GWCE Formulation
+	- Tau value as per ADCIRC code
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+
+-----------------------------------------------
+Log of v4.xx.xxxx
+
+Everything with leap-forg
+2D code fully nonlinear no upwinding
+No run-up
+Cyclone included
+-----------------------------------------------
+
+-v4.35.x
+Attmepting
+	- Zero velocity at boundaries of type 12
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+-v4.34.x
+Attemting
+	- Holland wind formulation
+	- Drag coefficient from the following paper
+		Rogers, W.E., A.V. Babanin, and D.W. Wang, 2012: Observation-Consistent Input and Whitecapping Dissipation in a Model for Wind-Generated Surface Waves: Description and Simple Calculations. J. Atmos. Oceanic Technol., 29, 1329–1346, https://doi.org/10.1175/JTECH-D-11-00092.1 
+	- Check image 'windShear.jpg'
+	[-X-] Visual : Trial 8 - Logs/windShear.jpg
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+-v4.33.x
+Attempting
+	- Corrected pressure drop as per JS Mani page 28
+	- Printing pressure and winShearVec
+	- Added new matrix for pressure gradient to ease the confusion
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+-v4.32.x
+Attempting
+	- Case with 35295 linNodes 140248 quad nodes
+	- I noticed that for putting values in CSR matrices in rh1(), I can save the location in jvf for each element using a 81 long array for a 9x9 matrix
+		- This is a one time operation and will save a lot of time in rh1()
+	    - Gives a further 1.1x speedup
+	- Also converted lN(9,9) to lN(81)
+	    - I think it gives 0.002 secs (2% improvement)
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+
+-v4.31.x
+Attempting
+	- Cleaned the code of v4.20 to include the OpenMP implementation in rh1()
+	- Case with 35295 linNodes 140248 quad nodes
+	- Open in rh1() using 
+	    !$OMP   PARALLEL DEFAULT(shared) PRIVATE(i,i2,j,j2,k,k2,l,iel,na,lJacb,lN11,lN12,lN22,lN) 
+	    - This gives results and is 1.5x faster.
+	    - Serial 0.15-0.16 sec per time step out of which 0.12-0.13 sec is in rh1()
+	    - Parallel with 4 cores takes 0.10-0.12 secs (1.5x speedup) with 0.08 to 0.09 for rh1() (1.5x speedup), hence taking 75-80% of tot time
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+-v4.30.x
+Attempting
+	- [Failed] Parallisation using OpenMP
+	- Case with 35295 linNodes 140248 quad nodes
+	  	- Serial 0.15-0.16 sec per time step out of which 0.12-0.13 sec is in rh1(), 75-85% of the total time
+		- OpenMP in rh1() only, total run-time per timetep 0.03-0.04 sec with 4 cores (around 4x-5x speedup). 
+		  - Out of this rh1() takes only 0.002-0.003 sec (8%) of the time (speedup of 60x) (which agrees with the 4x-5x speedup in total time).
+		- I only did crude parallelisation of the element loop making all variables private except for the global mesh variables (conn,jacb,dep,u,v,ivf,jvf,gN11,gN12,gN22)
+		- This however was wrong as for some reason the values of gN11, gN12, gN22 became 0d0 and thats why it was so quick
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+-v4.20.x
+Attempting
+	- Generic mesh input
+	- Use quadmesh2dToBsnq to convert from quad-automesh2D format to the Bsnq format
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+-v4.10.x
+Attempting
+	- Adding Coriolis coefficient
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+-v4.09.x
+Attempting
+	- Pressure profile included with variaion as per JS Mani book
+		- The pressure is the majority contribution for the storm surge
+	- Wind shear term coorected and included
+		- In Chitra ma'am's work she has calculated wind shear and then multiplied it with h. This is dimensionally wrong. 
+			- Wind shear/rho has units m2/s2. 
+			- Her momentun eqn has units m2/s2
+			- Therefore multilying the winShear/rho with h makes it m3/s2 which is wrong
+		- In my code the momentun eqn has units m/s2. 
+			- Therefore I do windShear/rho/htotal = m/s2
+	- The effect of windShear is negligible when compared to the atmospheric pressure drop.
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+-v4.06.x
+Attempting
+	- Coordinate output in latitude, longitude
+	- Cyclone track as input file
+	- Changed the UTM zone to 45 from 44
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+-v4.05.x
+Attempting
+	- Modifying the bndDepth to the user input minDe when its less than the minDe.
+		- This is being done coz the totDe goes negative often.
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+-v4.04.x
+Attempting
+	- Adding mesh type 3
+	- The mesh picked from Behra sir's code	
+	- Printing the water depth at all the boundary nodes.
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+-v4.03.x
+Attempting
+	- I forgot what was done here
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+-v4.02.x
+Attempting:
+	- As the water dpeth can be -ve (above MSL), I have ad-hoc written it so that below minDe the eta, u and v become zero
+
+Observation:
+	- Tested on rect1
+	- Its kind of stable so I think we'll just stick with this for now.
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+-v4.01.x
+Attempting:
+	- Included the wind function from KC code.
+
+Observation:
+	- The wave amplitudes are too small but I'm not sure why.
+	- It looks ok otherwise
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+-v4.00.x
+continued from v3.1
+Existing:
+	- Leap-frog
+	- 9-noded element
+	- Simpson integration 2D
+	- nonlinearity in continuity
+
+Attempting
+	- Adding nonlinearity in momentum
+
+Trial_a0:
+	- dt=0.005
+	- dx=0.1
+
+Trial_a1:
+	- dt=0.01
+	- dx=0.1
+
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+-v4.00.x
+continued from v3.1
+Existing:
+	- Leap-frog
+	- 9-noded element
+	- Simpson integration 2D
+	- nonlinearity in continuity
+
+Attempting
+	- Adding nonlinearity in momentum
+
+Trial_a0:
+	- dt=0.005
+	- dx=0.1
+
+Trial_a1:
+	- dt=0.01
+	- dx=0.1
+
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+
+-----------------------------------------------
+Log of v3.xx.xxxx
+
+Everything with leap-forg
+-----------------------------------------------
+
+-v3.13.x
+Attempting
+	- Printing the values of velocity for the neighbours of the interface nodes.
+	- OutputXML
+	- During run-down I try to make all the quad nodes connected to the dry nodes as dry irrespective of them being actually wet or dry. 
+		- This is coz in analysis of all nodes in v3.12.2 I found that the velocity extrapolation llooks high despite the neghbouring linear nodes being small is coz if the quad nodes in the interface nodes which are wet and have caluclation generating high values which disrupt everything.
+		- I have to make sure that the quad nodes in the interface elements that are connected to the wet nodes on the edge is not made dry coz otherwise I'll never be able to identify an interface element.
+		- I can solve the above issue by detecting the interface element only using the linear nodes. 
+			[***] Note: (I like my implementation of this part :P)
+	- npoisur to count number of elements connected to the node implemented also for linear nodes
+		- This was not done earlier (god knows why)
+			- This was not done earlier as for quad nodes the maxNeEle would be 2, however for the linear nodes it can be unlimited
+		- It is required to implement the above wet-dry alogorithm
+
+Trials
+- 13.0
+	- Rad = 0.42
+	- MLS
+
+- 13.1
+	- Rad = 0.62
+	- MLS
+
+- 13.2
+	- Rad = 0.42
+	- RPIM-Linear
+Observation :
+	- RPIM-Linear fails too soon so MLS seems to perform better than RPIM-Linear for the same radius
+
+- 13.3
+	- Rad = 0.42
+	- MLS
+	- Momentum eqn - linear
+
+- 13.0b
+	- Rad = 1.1
+	- MLS
+	- rect1
+
+- 13.1b
+	- Rad = 1.6
+	- MLS
+	- rect1
+
+- 13.2b
+	- Rad = 1.1
+	- RPIM-Linear
+	- rect1
+Observation :
+	- Comparing 13.0b and 13.2b, teh MLS case fails later than RPIM-Linear
+
+- 13.3b
+	- Rad = 1.1
+	- MLS
+	- Momentum eqn - linear
+	- rect1
+
+
+Observations
+	- Nothing works
+	- Generally speaking RPIM-Linear worked worse than MLS
+
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+-v3.12.0
+Attempting
+	- Changing tp MLS from RPIM
+
+Attempting in v3.12.1
+	- Checking extrapolation
+Observation
+	- Passed beautifully in X direction
+	- In Y direction (along the interface line) the number of nrighbours would be less hence it doesnt work very well there.
+
+Attempting in v3.12.2
+	- Printing the values of velocity for the neighbours of the interface nodes.
+	- OutputXML
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+-v3.11.00
+Attempting
+	- Correcting the wall bnd where I did cycle of wetpoi(i) instead of wetpoi(k) which was wrong
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+-v3.10.00
+Attempting
+	- While updating making the wetpoint values to negative so that the inundation thing works
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+-v3.9
+Continued from v3.7c
+Attempting
+	- Adding mesh type 2
+	- Splitting input into functions
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+-v3.8
+Continued from v3.7
+Attempting
+	- Trying fractional step
+	- Keeping nonlinearity in momentum and continuity
+	- Linear RBF
+	- Radius 1.2
+	- Extrapolating h+eta
+
+Observation
+	- Eerily identical to the leap-frog results
+	- Then there shouldnt be any use in doing this fractional step right?
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+-v3.7
+Continued from v3.6c
+Attempting
+	- Including nonlinearity in momentun eqns
+
+Observations
+	- There is a difference but doesn't look any positive but neither looks negative so keeping it
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+-v3.6c
+Attempting in v3.6c
+	- Reducing radius to 1.2 from 1.4
+	- Reducing the polynomial to linear from quadratic
+
+Observations
+	- From comparing v3.5c and v3.6c, one can see that it made no difference in extrapolaion eta or eta+h
+	
+Discussion
+	- In the paper [1], they have 
+		- used RBF-FD for solving the shallow water equation
+		- used Gaussian weight fnc as it is easier to hyper-diffusion as required for the hyperbolic eqns
+		- used RBF augmented with linear polynomial
+		- mentioned that we should extrapolate u, v and (h+eta). If only eta is extrapolated then according to them you will not satisfy the "lake at rest conditon"
+
+Attempting
+	Based on the information in ref 1, I am doing the following
+	- Extrapolating (eta+h), u and v
+	- keeping quad polynomial for now.
+	- keeping the polynomial weight fnc for now
+
+[-X-] Reference:
+	[1] R. Brecht, A. Bihlo, S. MacLachlan, and J. Behrens, “A well-balanced meshless tsunami propagation and inundation model,” May 2017.
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+-v3.5c
+Continued after v3.4
+
+Attempting in v3.5c
+	- Trying rpiOr=3 instead of 6
+
+Attempting in v3.5b
+	- Trying smaller radius of 1.2 fro, 1.4
+
+Attempting
+	- Extrapolating only at linear nodes
+	- Using FEM linear shape function along with the area as element weight for calculating values at the quad nodes.
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+-v3.4
+Attempting
+	- Changing the G and eye matrix in the rpim extrapolation function avoid repeated memory allocation
+
+[***] Important
+Observarion
+	- From using the time analysis in the midpoiFindNe in the extrapolationTimeAnalysis.f90, I have noticed that
+		- Negh search takes no time
+		- object init take no time
+		- matrix inversion take all the time (surprising because I am using exact method of Gauss elimination)
+	- Also a lot of time is lost in recalculating the matrices. See if you can speed that up.
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+-v3.3
+Attempting
+	- Changing the midpoiFindNe algorithm
+
+Observation
+	- Marginally faster than searching across all through the earlier crude algorithm. This is mostly coz of the low number of midpoi nodes.
+	- The results are slightly different as compared to v3.2, where the only difference is in the search algorithm.
+	- This makes me think the slowest part is the matrix inversion
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+-v3.2
+Attempting
+	- Trying extrapolation for vars eta u and v at t0 t1 t2
+
+Observation
+	- Still the random oscillaions near the extrapolation region are happening. However their magnitude seems more controlled
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+-v3.1
+Attempting
+	- Including the nonlinear term in continuity eqn without upwinding
+
+Observation
+	- Stable for small ampltiude without upwinding
+	- Significant difference between the linear (v3.0) and continuity nonlinear (v3.1) versions.
+		- Check swe9n_v3.1_vs_v3.0.pvsm
+	- v3.1 is 7 times slower than v3.0 coz of recalculation of the matices in the continuity eqn
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+-v3.0
+Attempting
+	- Shifting to Explicit Leapfrog
+	- Going to not extrapolate the time derivatives
+	- Removing nonlinearity in continuity eqn to compare with v1.0
+
+Observation
+	- Very small difference between the Adam-bashforth and Leapfrog time stepping methods can be seen. (Note that in both case the equations are completely linearised)
+		- Check swe9n_v3.0_vs_v1.0.pvsm
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+-----------------------------------------------
+Log of v2.xx.xxxx
+
+Adam bashforth time-stepping
+-----------------------------------------------
+
+-v2.8
+Attempting
+	- Making RPIM polynomial as linear instead of quadratic
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+-v2.7.2
+Attempting in v2.7.2b
+	- Smaller radius, from 1.8 to 1.4
+	- minDe changed to 5d-4 from 5d-3
+
+Attempting
+	- Turining off bottom friction to see if it helps removing that oscillation
+
+Observation
+	- Still blowing up but little differently
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+-v2.7
+Attempting
+	- Adding sponge layer
+	- Trying the run-down algorithm
+
+Observation
+	-Everything works fine but after the run-down the velocity just blows up
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	
+
+-v2.6.2
+Attempting
+	- Nonlinear term in continuity eqn for small amplitude
+
+Observation
+	- Based on the comparison between v2.6 and v2.6.2, it seems that using the nonlinear term in the continuity eqn without upwinding for small amplitude works much better and is closer to the 1D simulation for the same case
+	- I think this is because for negative water depth, the use of just teh linear terms will change the sign of the contribution of the velocity term and that spoils it,.
+	- For large amplitudes obviously I'll have to do upwinding.
+	- For small ampltiude everything seems fine till the end of run-up.
+	- Now I need to find a run-down algorithm.
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+-v2.6
+Attempting
+	- Trying different weight function other than Exponential
+		- Trying Wendland-C4
+Observation
+	- Despite the larger radius the RPIM didnt fail and actually performed decent
+	- Check v2.1d
+		- There for a node inside the wet domain when I did RPIM interpolation, then in case of exponential weight function the RPIM was failing for eta (sinusodal) when the radius was too large (>1.2) and I had to tune the weight function coefficient to suit the radius accordingly.
+		- In case of Wendland-C4, despite a radius of 2 (8x0.25), the interpolation was correct.
+		- Even the extrapolated values werent wrong
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+-v2.5
+Attempting
+	- Move the interface
+	- Moving the interface element by element
+		- Identify the elements connected to the interface nodes.
+		- Identify if the interface 'edge' in the interfce element is wet/dry
+		- If the interface 'edge' is wet then recheck if all the nodes in the element are above minDe.
+			- If yes then make all the nodes in the element wet		
+		- All the nodes in this 'dry interface' element should be in the interface nodes array. Therefore their values would be determined through extrapolation
+
+Observation
+	- The algorithm works very specifically only for a particular radius and shape function parameter for the exponential shape function in RPIM
+	- Sir says this is because of the use of exponential shape function and suggests that we use the other polynomial shape functions
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+-v2.4
+Attempting
+	- Nonlinear term in continuity (h+eta).
+
+Observation
+	- Just garbage
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+-v2.3
+Attempting
+	- Adding manning coeff term for bottom friction.
+
+Observation
+	- Didnt do anything obviously
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+-v2.2
+Attempting
+	- Observed in v2.1 that the extrapolation is often underestimated.
+	- Also the extrapolated interface wasnt moving smoothly.
+	- So attempting to include the midpoi nodes in the neighbourhood for the extrapolation to see if it helps.
+
+Observations
+	- For some reason the values of the phi either go to NaN (despite me having an explicit check to ensure that the coeff while dividing in Gauss elimination is non zero.)
+	- Otherwise the things just mess up.
+	- Do not know why and leaving this alone.
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+-v2.1
+Attempting:
+	- First trial of extrapolation
+	- No moving of the interface, just extrapolating the vales at predetermined midpoi nodes forever.
+
+Observations
+	- Tested in v2.1b and v2.1c that the RPIM is working correctly
+	- However still, the extrapolation is heavily dependent on the rad.
+	- If I increase the rad too much or make it too small the whole thing messes up
+	- Also I am unsure if I should extrapolate eta, u and v or if I should extrapolate eta and u_n.
+		- But for finding u_n I'll have to trach a continuous interface which is frankly a pain.
+	-Also the extremely high amplitude of the wave is very apparent. Need SUPG to dampen it but I do not know 2D SUPG!!!!
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+-v2.0
+Attempting:
+	- Wet-dry identification
+	- Created rpimModule
+
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+-----------------------------------------------
+Log of v1.xx.xxxx
+-----------------------------------------------
+
+-v1.0
+
+
+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
