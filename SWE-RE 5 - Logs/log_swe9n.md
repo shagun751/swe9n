@@ -11,6 +11,7 @@ continued from swe9n\_v5.34ea.sqB.tA
 - Predictor corrector time-stepping
 - OpenMP parallelisation
   
+1. [GWCE Model Notes](./gwce_model_notes.md)
 1. [Initial development log](#log_swe9n_v0001)
 
 -----------------------------------------------
@@ -25,6 +26,7 @@ continued from swe9n\_v5.34ea.sqB.tA
 
 ### List of Work
 - [x] To be filled
+- [x]
 
 
 ### Observations : VertVel : Unidirectional wave [2020-03-13]
@@ -59,3 +61,5 @@ continued from swe9n\_v5.34ea.sqB.tA
 1. Dresback, K. M., Kolar, R. L., & Dietrich, J. C. (2004). A 2D implicit time-marching algorithm for shallow water models based on the generalized wave continuity equation. International Journal for Numerical Methods in Fluids, 45(3), 253–274. https://doi.org/10.1002/fld.697
 
 1. Carter, G. S., & Merrifield, M. A. (2007). Open boundary conditions for regional tidal simulations. Ocean Modelling, 18(3–4), 194–209. https://doi.org/10.1016/j.ocemod.2007.04.003
+
+1. Wind Drag Based on Storm Sectors. [Link](https://ccht.ccee.ncsu.edu/wind-drag-based-on-storm-sectors/)
