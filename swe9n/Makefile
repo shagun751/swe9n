@@ -5,22 +5,36 @@ SWITCH_GFORTRAN_RELEASE=-Ofast
 SWITCH_GFORTRAN_O2=-O2
 SWITCH_GFORTRAN_DEBUG=-O0 -g -fbounds-check -fbacktrace
 
-PARA_FLAGS=-O3 -lstdc++ -fopenmp -L/usr/local/cuda/lib64
+COMPILER=ifort
+#COMPILER=gfortran
+
+ifeq ($(COMPILER),ifort)
+	MODPATH=-module subroutines
+	C_COMP=icc
+	PARA_FLAGS=-O3 -lstdc++ -fopenmp -L/usr/local/cuda/lib64	
+else ifeq ($(COMPILER),gfortran)
+	MODPATH=-J subroutines
+	C_COMP=g++
+	PARA_FLAGS=-O3 -lstdc++ -fopenmp -L/usr/local/cuda/lib64	
+endif
 
 MAIN=swe9n
 
-OBJ=$(MAIN).o
-	
-default: $(OBJ)
-	mkdir -p Output Resume
-	#gfortran -o swe $(OBJ) $(PARA_FLAGS) -Wall
-	gfortran -o swe $(OBJ) $(PARA_FLAGS) 
+OBJ=$(MAIN).f90
 
-$(MAIN).o: $(MAIN).f90
-	gfortran $(PARA_FLAGS) -c $(MAIN).f90
+SUBS=\
+subroutines/*.f90
+	
+default: $(OBJ) $(SUBS)
+	mkdir -p Output Resume	
+	$(COMPILER) -o swe $(OBJ) $(PARA_FLAGS) $(MODPATH)
+
+cleanAll:
+	rm -rf subroutines/*.mod *.o Output swe
+	mkdir Output
 
 clean:
-	rm -rf *.log *.var *.mod *.dat *.o Output vol.png fort.20
+	rm -rf Output
 	mkdir Output
 
 rmout:

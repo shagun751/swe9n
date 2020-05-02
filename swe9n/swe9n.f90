@@ -227,7 +227,7 @@ implicit none
 
 !!-------------------------Mesh File--------------------------!!
   !! Mesh file name
-  text=probname(1:len_trim(probname))//'.plt'
+  text=probname(1:len_trim(probname))//'.msh'
   inquire(file=text(1:len_trim(text)),exist=ex)
   if(ex) then
     open(ifl(2),file=text(1:len_trim(text)))    
@@ -272,9 +272,9 @@ implicit none
   conn=0
   read(ifl(2),*,end=11,err=11)text
   do i=1,nele
-    ![Imp Edit] : if conn is node anticlk in plt file    
+    ![Imp Edit] : if conn is node anticlk in msh file    
     read(ifl(2),*,end=11,err=11)(conn(i,j),j=1,4)
-    ![Imp Edit] : if conn is node clk in plt file
+    ![Imp Edit] : if conn is node clk in msh file
     !read(mafi(1),*,end=11,err=11)tempstr(1),tempstr(3),tempstr(2)    
   enddo
   write(tf,*)"[MSG] Done elements read"
