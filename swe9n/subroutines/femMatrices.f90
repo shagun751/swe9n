@@ -7,6 +7,8 @@ implicit none
   real(kind=C_K2),intent(out)::shW(9)
   real(kind=C_K2)::corE(9),corN(9),cnsNI
 
+  integer(kind=C_K1):: i, j
+
   !! Note:
   ! For the matrices shF, shFE, shFN, the definition is
   ! shF(i,j) = value of shapeFnc of node i at node j
@@ -95,6 +97,9 @@ implicit none
   real(kind=C_K2)::ecx(9),ecy(9)
   type(jacbType),intent(out)::jacb(nele)
   real(kind=C_K2),intent(out)::eleArea(nele)
+
+  integer(kind=C_K1):: iel, na(9), i, j
+  real(kind=C_K2):: tmpr1, tmpr2, tmpr3, tmpr4, tmpr5
 
   !! Note:
   ! jacb(i)%D(j) = value of D inside element i at integration point j

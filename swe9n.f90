@@ -16,52 +16,44 @@
 
 
 include 'subroutines/mods.f90'
-include 'subroutines/modsMFree.f90'
 include 'subroutines/eqnMatrices.f90'
+include 'subroutines/extrapolation.f90'
 include 'subroutines/femMatrices.f90'
 include 'subroutines/geometry.f90'
 include 'subroutines/misc.f90'
 include 'subroutines/output.f90'
 include 'subroutines/utmGeo.f90'
+include 'subroutines/waveCalculator_v2.f90'
 include 'subroutines/wind.f90'
-include 'subroutines/sweMeshFree.f90'
-include 'subroutines/modsInletBC.f90'
+
 
 program sweNineNoded
 use basicVars
 use jacobianModule
-!use rpimModule
+use rpimModule
 use omp_lib
-use meshFreeMod
-use airyWaveModule
 implicit none
 
 !!-----------------------Declarations-------------------------!!
-  integer(kind=C_K1)::i, j, k, l, tmpi1, tmpi2
-  integer(kind=C_K1)::i2, j2, k2
-  real(kind=C_K2)::tmpr1, tmpr2, tmpr3, tmpr4 
-  character(len=256)::probname, text
-  logical:: ex
-
   integer(kind=C_K1)::npl,npq,npt,nele,nbnd,nbndtyp,nnzt
   integer(kind=C_K1)::nbndpoi,nmidpoi
   integer(kind=C_K1)::itime,ntime,fileOut
   integer(kind=C_K1)::cycN,cycP,ompNThread,depIter
-  integer(kind=C_K1)::windDragForm
   integer(kind=C_K1),allocatable::conn(:,:),mabnd(:,:)
   integer(kind=C_K1),allocatable::poi2poi(:,:)
   integer(kind=C_K1),allocatable::bnd11p(:),bnd12p(:)
+  integer(kind=C_K1),allocatable::bnd13p(:)
   integer(kind=C_K1),allocatable::npoisur(:,:)
   integer(kind=C_K1),allocatable::ivf(:),jvf(:)  
   integer(kind=C_K1),allocatable::wetpoi(:),midpoi(:)
   integer(kind=C_K1),allocatable::elejvf9x9(:,:),probe(:)
+  integer(kind=C_K1),allocatable::bndpNe(:)
 
   type(jacbType),allocatable::jacb(:)
   real(kind=C_K2)::shF(9,9),shFE(9,9),shFN(9,9),shW(9)
   real(kind=C_K2)::dt,rtime,minDe,etaTWei(3)
-  real(kind=C_K2)::windLon(4),windLat(4)
-  real(kind=C_K2)::windR0(4),windWm(4),windA,windB,tau0
-  real(kind=C_K2)::RedFacW,RedFacP
+  real(kind=C_K2)::windX0,windY0,wavD(8)
+  real(kind=C_K2)::windR0,windWm,windA,windB,tau0
   real(kind=C_K2),allocatable::tmpra(:,:),bndpNm(:,:),bndLen(:)
   real(kind=C_K2),allocatable::coorx(:),coory(:),dep(:)
   real(kind=C_K2),allocatable::lat(:),lon(:),tau(:)
@@ -75,6 +67,7 @@ implicit none
   real(kind=C_K2),allocatable::p(:),pt1(:),pt2(:)
   real(kind=C_K2),allocatable::q(:),qt1(:),qt2(:)
   real(kind=C_K2),allocatable::jxt1(:),jyt1(:)
+  real(kind=C_K2),allocatable::vAbs(:),vAbsdt(:)
   real(kind=C_K2),allocatable::gM0(:),gK11(:),gK21(:),gK31(:)
   real(kind=C_K2),allocatable::gK41(:),gK51(:)  
   real(kind=C_K2),allocatable::gK61(:),gK71(:),gK81(:)
@@ -94,11 +87,12 @@ implicit none
   real(kind=C_K2),allocatable::cycInf(:,:),pr(:),eleArea(:)
   real(kind=C_K2),allocatable::gTxx(:),gTxy(:),gTyx(:),gTyy(:)
   real(kind=C_K2),allocatable::bnTx(:),bnTy(:)
+  real(kind=C_K2),allocatable::bnAbs(:)
   real(kind=C_K2),allocatable::probeLoc(:,:),cour(:)
   real(kind=C_K2)::lR1,lR2,lR3,lR4,lR5,lR6,lR7
 
-  type(mfPoiTyp),allocatable::pObj(:)
-  type(airyType)::wvIn
+  type(rpimType),allocatable::midObj(:)
+  type(rpimType)::midTmp1
 
   logical::meshLonLat
 !!---------------------End Declarations-----------------------!!
@@ -151,6 +145,11 @@ implicit none
   read(ifl(1),*,end=21,err=21)text
   read(ifl(1),*,end=21,err=21)depIter
   read(ifl(1),*,end=21,err=21)text
+  read(ifl(1),*,end=21,err=21)botCd
+  read(ifl(1),*,end=21,err=21)text
+  read(ifl(1),*,end=21,err=21)smCsSq
+  smCsSq=smCsSq**2
+  read(ifl(1),*,end=21,err=21)text
   read(ifl(1),*,end=21,err=21)ompNThread  
   read(ifl(1),*,end=21,err=21)text
   read(ifl(1),*,end=21,err=21)text
@@ -166,20 +165,13 @@ implicit none
     allocate(probe(0:0),probeLoc(0:0,2))
     probe(0)=0
   endif  
-
-  read(ifl(1),*,end=21,err=21)text
-  read(ifl(1),*,end=21,err=21)text
-  read(ifl(1),*,end=21,err=21)tmpr1, tmpr2, tmpr3
-  wvIn=airyType(tmpr1, tmpr3, tmpr2, 0d0, 0d0, 0d0)
-  write(tf,'(" [INF] ",3A15)')'T','L','d'
-  write(tf,'(" [---] ",3F15.6)')wvIn%T,wvIn%L,wvIn%d
-  write(tf,'(" [INF] ",A15)')'d/L'
-  write(tf,'(" [---] ",F15.6)')wvIn%d/wvIn%L
   goto 22
 
   21 write(tf,*) "[ERR] Check input file format"
   stop
-  22 write(tf,*) "[MSG] Input read done"
+  22 write(tf,'(" [INF] botCd = ",F15.6)')botCd
+  write(tf,'(" [INF] Smagorinsky coeff ^2 = ",F15.6)')smCsSq
+  write(tf,*) "[MSG] Input read done"
   close(ifl(1))
 
   !! Cyclone track information  
@@ -195,16 +187,17 @@ implicit none
   read(ifl(4),*,end=23,err=23)text  
   read(ifl(4),*,end=23,err=23)windA,windB
   read(ifl(4),*,end=23,err=23)text  
-  read(ifl(4),*,end=23,err=23)RedFacW,RedFacP
-  read(ifl(4),*,end=23,err=23)text  
-  read(ifl(4),*,end=23,err=23)windDragForm
-  read(ifl(4),*,end=23,err=23)text  
   read(ifl(4),*,end=23,err=23)cycN
-  allocate(cycInf(cycN,5))
+  allocate(cycInf(cycN,7))
   write(tf,'(" [MSG] Ensure that ",I10," records are available")')cycN
   read(ifl(4),*,end=23,err=23)text  
   do i=1,cycN
-    read(ifl(4),*,end=23,err=23)cycInf(i,1:5)    
+    read(ifl(4),*,end=23,err=23)cycInf(i,1:5)
+    call utmGeo(cycInf(i,2),cycInf(i,3),cycInf(i,6),&
+      cycInf(i,7),1,45)    
+    if(.not.meshLonLat)then
+      cycInf(i,6:7)=cycInf(i,2:3)
+    endif
   enddo
   goto 24
 
@@ -213,7 +206,8 @@ implicit none
   24 write(tf,*) "[MSG] Cyclone track read done"
   !! Debug comments      
   do i=1,cycN
-    write(tf,'(5F15.4)')cycInf(i,1:5)
+    write(tf,'(4F15.4)')cycInf(i,1:4)
+    write(tf,'(A15,3F15.4)')"  ",cycInf(i,6:7),cycInf(i,5)
   enddo
   close(ifl(4))
   tmpr1=windA**(1/windB)
@@ -229,23 +223,13 @@ implicit none
     write(tf,*)"[Err] Cyclone track available for ",&
       cycInf(cycN,1)," secs"
     stop
-  endif  
-  write(tf,'(" [INF] Cyclone WindDrag Formulation")')
-  if(windDragForm.eq.1)then
-    write(tf,'(" [---] Garratt Symmetric")')
-  elseif(windDragForm.eq.2)then
-    write(tf,'(" [---] Powell Asymmetric")')
-  else
-    write(tf,'(" [ERR] No matching formulation")')
-    stop
   endif
-  write(tf,*)
   cycP=1  
 !!----------------------End Input File------------------------!!
 
 !!-------------------------Mesh File--------------------------!!
   !! Mesh file name
-  text=probname(1:len_trim(probname))//'.msh'
+  text=probname(1:len_trim(probname))//'.plt'
   inquire(file=text(1:len_trim(text)),exist=ex)
   if(ex) then
     open(ifl(2),file=text(1:len_trim(text)))    
@@ -275,7 +259,7 @@ implicit none
   read(ifl(2),*,end=11,err=11)text  
   do i=1,npl
     read(ifl(2),*,end=11,err=11)tmpr1,tmpr2    
-    call utmGeo(tmpr1,tmpr2,tmpr3,tmpr4,1,UTMZone)
+    call utmGeo(tmpr1,tmpr2,tmpr3,tmpr4,1,45)
     coorx(i)=tmpr3
     coory(i)=tmpr4
     if(.not.meshLonLat)then
@@ -290,9 +274,9 @@ implicit none
   conn=0
   read(ifl(2),*,end=11,err=11)text
   do i=1,nele
-    ![Imp Edit] : if conn is node anticlk in msh file    
+    ![Imp Edit] : if conn is node anticlk in plt file    
     read(ifl(2),*,end=11,err=11)(conn(i,j),j=1,4)
-    ![Imp Edit] : if conn is node clk in msh file
+    ![Imp Edit] : if conn is node clk in plt file
     !read(mafi(1),*,end=11,err=11)tempstr(1),tempstr(3),tempstr(2)    
   enddo
   write(tf,*)"[MSG] Done elements read"
@@ -369,8 +353,8 @@ implicit none
   !! Conver UTM to LonLat for lin+quad and Coriolis Coeff
   allocate(lon(npt),lat(npt),coriF(npt))
   do i=1,npt
-    call utmGeo(lon(i),lat(i),coorx(i),coory(i),2,UTMZone)
-    coriF(i)=2d0*7.29212d-5*dsin(deg2rad*lat(i))    
+    call utmGeo(lon(i),lat(i),coorx(i),coory(i),2,45)
+    coriF(i)=2d0*7.29212d-5*dsin(pi*lat(i)/180d0)    
   enddo
   if(.not.meshLonLat)then
     lon=coorx
@@ -380,9 +364,10 @@ implicit none
 
   nbndpoi=2*nbnd !!Lin + quad bnd nodes
   allocate(bnd11p(0:nbndpoi),bnd12p(0:nbndpoi))
+  allocate(bnd13p(0:nbndpoi))
   allocate(bndLen(nbnd),bndpNm(npt,2))
   call bndNormal(npt,nbnd,nbndpoi,mabnd,coorx,coory,&
-    bnd11p,bnd12p,bndLen,bndpNm)
+    bnd11p,bnd12p,bnd13p,bndLen,bndpNm)
 
   ! !! Debug comments
   ! write(tf,*)"[DBG] Nodes all"
@@ -457,7 +442,7 @@ implicit none
   allocate(tau(npt),eleArea(nele))
   allocate(eta(npt),etat1(npt),etat2(npt))
   allocate(etat1sq(npt),etat0sq(npt),ht1(npt),ht0(npt))
-  allocate(etaImp(npt))
+  allocate(etaImp(npt),vAbs(npt),vAbsdt(npt))
   allocate(ut1(npt),vt1(npt),uMagt1(npt))
   allocate(ut0(npt),vt0(npt),uMagt0(npt))
   allocate(p(npt),pt1(npt),pt2(npt))
@@ -476,12 +461,11 @@ implicit none
   allocate(gR1(npt),gR2(npt),gR3(npt),gR4(npt))  
   allocate(gR5(npt),gR6(npt),gR7(npt))
   allocate(gTxx(npt),gTxy(npt),gTyx(npt),gTyy(npt))
-  allocate(bnTx(npt),bnTy(npt))
-  allocate(wetpoi(npt),midpoi(npt))  
-  allocate(spngC(npt),cour(npt))
+  allocate(bnTx(npt),bnTy(npt),bnAbs(npt))
+  allocate(wetpoi(npt),midpoi(npt))
+  allocate(midObj(npt),spngC(npt),cour(npt))
   allocate(windTx(npt),windTy(npt),pr(npt))    
-  !allocate(midObj(npt))
-  allocate(pObj(npt))
+  allocate(bndpNe(npt))
 !!----------------------End Allocations-----------------------!!
 
 !!----------------------Initialisation------------------------!!
@@ -565,6 +549,7 @@ implicit none
     enddo
     probe(i)=k
   enddo  
+  write(tf,*)
   write(tf,'(" [INF] Probes Number = ",I10)')probe(0)
   ! write(tf,'(" [INF] ",A30,4A,30A)')"Required Lon Lat"," || ",&
   !   "Reported Lon Lat Dep"
@@ -592,7 +577,11 @@ implicit none
   ! enddo
 
   ! !! Gauss hump initial condition
-  ! eta=0.045d0*dexp(-2d0*((coorx-3d0)**2 + (coory-3d0)**2))
+  ! tmpr1=250000d0
+  ! tmpr2=50000d0
+  ! tmpr2=tmpr2**2
+  ! etat1=0.1d0*dexp(-8d0/tmpr2*((coorx-tmpr1)**2))
+  ! eta=etat1
   
   ! !! Solitary wave fnc2
   ! tmpr1=1d0
@@ -606,6 +595,30 @@ implicit none
   !     eta(i)=tmpr5
   !   endif
   ! enddo
+
+  !! Input wave details for bnd typ-13
+  !! wavD(8) = (/ d, omega, k, H, ,x0, y0, cos(th), sin(th) /)
+  wavD=0d0  
+  wavD(1)=4000d0
+  wavD(2)=960
+  wavD(4)=0.4d0
+  wavD(5)=0d0
+  wavD(6)=0d0
+  wavD(7)=1d0
+  wavD(8)=dsqrt(1d0-wavD(7)**2)
+  call waveCalculator(grav,pi,1d-6,wavD(2),wavD(1),wavD(3))
+  write(tf,*)
+  write(tf,*)"[INF] Input wave characteristics"
+  write(tf,'(" [---] d  (m)   = ",F15.6)')wavD(1)
+  write(tf,'(" [---] T  (s)   = ",F15.6)')wavD(2)
+  write(tf,'(" [---] L  (m)   = ",F15.6)')wavD(3)
+  write(tf,'(" [---] H  (m)   = ",F15.6)')wavD(4)
+  write(tf,'(" [---] x0 (m)   = ",F15.6)')wavD(5)
+  write(tf,'(" [---] y0 (m)   = ",F15.6)')wavD(6)  
+  write(tf,'(" [---] cos(th)  = ",F15.6)')wavD(7)
+  write(tf,'(" [---] sin(th)  = ",F15.6)')wavD(8)
+  write(tf,*)
+  wavD(2:3)=2*pi/wavD(2:3)  
 !!--------------------End Initialisation----------------------!!
 
 !!---------------------Constant Matrices----------------------!!
@@ -663,8 +676,6 @@ implicit none
   !write(tf,*)"[MSG] Checking gN31"
   !call chkMat(npt,nnzt,ivf,jvf,gN31)
 
-  call sweMFree(npt, nnzt, ivf, jvf, coorx, coory, pObj)  
-
   do i=1,bnd12p(0)
     k=bnd12p(i)
     write(tf,'(I10,F15.6)')k,dep(k)
@@ -674,13 +685,43 @@ implicit none
   do i=1,npt
     if(dep(i).lt.minDe) wetpoi(i)=0
   enddo  
+
+  !! Boundary point's neigh point
+  bndpNe=0  
+  l2=bnd11p(0)
+  do i=1,l2
+    j=bnd11p(i)
+    k=ivf(j)
+    k2=ivf(j+1)-2
+    tmpr1=1d50
+    do i2=k,k2
+      j2=jvf(i2)
+      if(minval(abs(bnd11p(1:l2)-j2)).eq.0)cycle !! avoiding 11 bnd points
+      !if(j2.gt.npl)cycle !! Considering only linear nodes
+      tmpr2=(coorx(j2)-coorx(j))**2 + (coory(j2)-coory(j))**2
+      if(tmpr2.lt.tmpr1)then
+        tmpr1=tmpr2
+        bndpNe(j)=j2
+      endif
+    enddo
+    if(bndpNe(j).eq.0)then
+      write(tf,*)'[ERR] Found no negh point for bndp',j
+      stop
+    endif    
+  enddo
+  ! ! Debug comments
+  ! do i=1,bnd11p(0)
+  !   k=bnd11p(i)
+  !   write(111,*)k,bndpNe(k)
+  ! enddo
+  ! stop
 !!-------------------End Constant Matrices--------------------!!
   
 !!-----------------------Time Stepping------------------------!!  
   ! call out4NXML(probname,npl,npt,nele,ifl(3),0,&
   !   conn,lon,lat,p,q,eta,dep,wetpoi,pr,windTx,windTy)
   call out4NXML(probname,npl,npt,nele,ifl(3),0,&
-    conn,lon,lat,p,q,eta,dep,wetpoi,pr,windTx,windTy,pObj)
+    conn,lon,lat,p,q,eta,dep,wetpoi,pr,windTx,windTy)
 
   !! Probe file
   text='Output/WaveProbe_'//probname(1:len_trim(probname))//'.dat'
@@ -693,6 +734,19 @@ implicit none
     rTime=rTime+dt
     write(tf,'(" Time : ",I10," : ",F15.6)')itime,rTime  
 
+
+    !! Outlet - Pre-Step
+    vAbs=0d0
+    vAbsdt=0d0
+    do i=1,bnd11p(0)
+      k=bnd11p(i)
+      k2=bndpNe(k)
+      vAbs(k)=dsqrt(grav*dep(k))*eta(k2)
+      vAbsdt(k)=dsqrt(grav*dep(k)) &
+        *(eta(k2)-etat2(k2))/2d0/dt
+        !*(3d0*eta(k2)-4d0*etat1(k2)+etat2(k2))/2d0/dt
+    enddo
+
     etat2=etat1
     pt2=pt1
     qt2=qt1
@@ -704,32 +758,6 @@ implicit none
     vt1=qt1/ht1
     etat1sq=etat1*etat1
     uMagt1=dsqrt(ut1**2 + vt1**2)
-
-    !! Cyclone Track
-    if(itime.lt.3)then
-      call cycTrack(cycN,cycP,cycInf,(rtime),&
-        windLon(1),windLat(1),windR0(1),windWm(1))
-      call cycTrack(cycN,cycP,cycInf,(rtime-dt),&
-        windLon(2),windLat(2),windR0(2),windWm(2))
-
-      do i=3,4
-        windLon(i)=2d0*windLon(i-1)-windLon(i-2)
-        windLat(i)=2d0*windLat(i-1)-windLat(i-2)
-        windR0(i)=2d0*windR0(i-1)-windR0(i-2)
-        windWm(i)=2d0*windWm(i-1)-windWm(i-2)
-      enddo
-    else
-      do i=4,2,-1
-        windLon(i)=windLon(i-1)
-        windLat(i)=windLat(i-1)
-        windR0(i)=windR0(i-1)
-        windWm(i)=windWm(i-1)
-      enddo
-      call cycTrack(cycN,cycP,cycInf,(rtime),&
-        windLon(1),windLat(1),windR0(1),windWm(1))      
-    endif
-    write(tf,'(" [CYC] ",A15,2F15.6)')"Position :",windLon(1),windLat(1)
-    write(tf,'(" [CYC] ",A15,F15.6)')"Max Wind :",windWm(1)
     
     call system_clock(sysClk(6))
     call GWCErh2(npt,nele,nnzt,conn,jacb,shF,shFE,shFN,&
@@ -737,13 +765,16 @@ implicit none
       gTxx,gTxy,gTyx,gTyy)            
     call bndInt(npt,nele,nbnd,nnzt,conn,mabnd,jacb,shF,&
       shFE,shFN,shW,eleArea,elejvf9x9,bndLen,bndpNm,&
-      ht1,ut1,vt1,bnTx,bnTy)
+      ht1,ut1,vt1,tau,vAbs,vAbsdt,bnTx,bnTy,bnAbs)
     call system_clock(sysClk(7))
 
-    !! Cyclone wind            
-    call windNew4b(windDragForm,RedFacW,RedFacP,dt,npt,lon,lat,&
-      coorx,coory,windLon(2:4),windLat(2:4),windR0(2:4),coriF,&
-      windWm(2:4),windA,windB,pr,windTx,windTy)    
+    !! Cyclone wind    
+    call cycTrack(cycN,cycP,cycInf,(rtime-dt),&
+      windX0,windY0,windR0,windWm)
+    ! write(tf,'(" [CYC] ",A15,2F15.6)')"Position :",windX0,windY0
+    ! write(tf,'(" [CYC] ",A15,2F15.6)')"Details :",windR0,windWm
+    call windNew2(npt,coorx,coory,windX0,windY0,windR0,&
+      coriF,windWm,windA,windB,pr,windTx,windTy)    
 
     gR1=0d0
     gR2=0d0
@@ -782,7 +813,7 @@ implicit none
 
     !! Solving for Eta 
     !! Predictor for P and Q
-    gR1=gR1+(gE12*etat2)  
+    gR1=gR1+(gE12*etat2)+(dt*dt*bnAbs)
     gR4=gR4+(gE41*pt1)+(gE42*pt1)+(gE43*jxt1)
     gR5=gR5+(gE41*qt1)+(gE42*qt1)+(gE43*jyt1)     
     !$OMP PARALLEL DEFAULT(shared) &
@@ -812,6 +843,15 @@ implicit none
     p=gR4/gK41
     q=gR5/gK51    
 
+    !! Forcing Inlet BC
+    do i=1,bnd13p(0)
+      k=bnd13p(i)
+      eta(k)=-wavD(4)/2d0*sin(wavD(3)*(coorx(k)-wavD(5)) &
+        - wavD(2)*rTime)
+      p(k)=dsqrt(wavD(1)*grav)*eta(k)
+      q(k)=0d0
+    enddo
+
     !! Forcing wall BC    
     do i=1,bnd12p(0)
       !if(wetpoi(i).eq.0)cycle
@@ -824,16 +864,20 @@ implicit none
       q(k)=tmpr4      
     enddo    
 
-    ! !! Forcing Inlet BC
-    ! do i = 1, bnd11p(0)
-    !   k = bnd11p(i)
-    !   tmpr1 = bndpNm(k,1)
-    !   tmpr2 = bndpNm(k,2)
-    !   call wvIn%getEta(rTime, 0d0, 0d0, tmpr3)
-    !   tmpr4 = dsqrt(grav*dep(k)) 
-    !   p(k) = -tmpr4*tmpr3*tmpr1
-    !   q(k) = -tmpr4*tmpr3*tmpr2
-    ! enddo
+    !! Forcing Outlet BC    
+    do i=1,bnd11p(0)
+      !if(wetpoi(i).eq.0)cycle
+      k=bnd11p(i)
+      k2=bndpNe(k)
+      tmpr1=bndpNm(k,1)
+      tmpr2=bndpNm(k,2)
+      tmpr5=dsqrt(grav*dep(k))*eta(k2)
+
+      tmpr3=p(k)*tmpr2*tmpr2 - q(k)*tmpr1*tmpr2 + tmpr5*tmpr1
+      tmpr4=-p(k)*tmpr1*tmpr2 + q(k)*tmpr1*tmpr1 + tmpr5*tmpr2
+      p(k)=tmpr3
+      q(k)=tmpr4      
+    enddo    
     
     !! Corrector Steps
     etat0sq=eta*eta
@@ -845,23 +889,38 @@ implicit none
     gR1=0d0
     gR6=0d0
     gR7=0d0
+
+    !! Outlet - Pre-step
+    vAbs=0d0
+    vAbsdt=0d0
+    do i=1,bnd11p(0)
+      k=bnd11p(i)
+      k2=bndpNe(k)
+      vAbs(k)=dsqrt(grav*dep(k))*etaImp(k2)
+      vAbsdt(k)=dsqrt(grav*dep(k)) &
+        *(eta(k2)-etat2(k2))/2d0/dt
+        !*(3d0*eta(k2)-4d0*etat1(k2)+etat2(k2))/2d0/dt
+    enddo
     
     call GWCErh2(npt,nele,nnzt,conn,jacb,shF,shFE,shFN,&
       shW,eleArea,elejvf9x9,ht0,ut0,vt0,gD21,gD25,gD35,&
       gTxx,gTxy,gTyx,gTyy)     
     call bndInt(npt,nele,nbnd,nnzt,conn,mabnd,jacb,shF,&
       shFE,shFN,shW,eleArea,elejvf9x9,bndLen,bndpNm,&
-      ht0,ut0,vt0,bnTx,bnTy)  
+      ht0,ut0,vt0,tau,vAbs,vAbsdt,bnTx,bnTy,bnAbs)  
 
-    !! Cyclone wind        
-    call windNew4b(windDragForm,RedFacW,RedFacP,dt,npt,lon,lat,&
-      coorx,coory,windLon(1:3),windLat(1:3),windR0(1:3),coriF,&
-      windWm(1:3),windA,windB,pr,windTx,windTy)     
+    !! Cyclone wind    
+    call cycTrack(cycN,cycP,cycInf,rtime,&
+      windX0,windY0,windR0,windWm)
+    write(tf,'(" [CYC] ",A15,2F15.6)')"Position :",windX0,windY0
+    write(tf,'(" [CYC] ",A15,2F15.6)')"Details :",windR0,windWm
+    call windNew2(npt,coorx,coory,windX0,windY0,windR0,&
+      coriF,windWm,windA,windB,pr,windTx,windTy)     
 
     !! Corrector for P and Q  
     !! [Note] : Do not forget to multiply by dt here 
     !!          when taking terms from Jx Jy eqn
-    gR1=gR1+(gE81*etat1)+(gE12*etat2)
+    gR1=gR1+(gE81*etat1)+(gE12*etat2)+(dt*dt*bnAbs)
     gR6=gR6+(gE41*pt1)+(dt*gE23*q)+(dt*gE26*windTx)&
       +(dt*gEBot*uMagt0*ut0)+dt*(gTxx+gTxy+0d0*bnTx)
     gR7=gR7+(gE41*qt1)-(dt*gE23*p)+(dt*gE26*windTy)&
@@ -895,6 +954,15 @@ implicit none
     p=0.5d0*(p+gR6/gK61)
     q=0.5d0*(q+gR7/gK71)    
 
+    !! Forcing Inlet BC
+    do i=1,bnd13p(0)
+      k=bnd13p(i)
+      eta(k)=-wavD(4)/2d0*sin(wavD(3)*(coorx(k)-wavD(5)) &
+        - wavD(2)*rTime)
+      p(k)=dsqrt(wavD(1)*grav)*eta(k)
+      q(k)=0d0
+    enddo
+
     !! Forcing wall BC    
     do i=1,bnd12p(0)
       !if(wetpoi(i).eq.0)cycle
@@ -907,26 +975,26 @@ implicit none
       q(k)=tmpr4      
     enddo    
 
-    ! !! Forcing Inlet BC
-    ! do i = 1, bnd11p(0)
-    !   k = bnd11p(i)
-    !   tmpr1 = bndpNm(k,1)
-    !   tmpr2 = bndpNm(k,2)
-    !   call wvIn%getEta(rTime, 0d0, 0d0, tmpr3)
-    !   tmpr4 = dsqrt(grav*dep(k)) 
-    !   p(k) = -tmpr4*tmpr3*tmpr1
-    !   q(k) = -tmpr4*tmpr3*tmpr2
-      
-    !   if(i.eq.1)then
-    !     write(8,'(4F15.6)')rTime, tmpr3, p(k), q(k)
-    !   endif
-    ! enddo
+    !! Forcing Outlet BC    
+    do i=1,bnd11p(0)
+      !if(wetpoi(i).eq.0)cycle
+      k=bnd11p(i)
+      k2=bndpNe(k)
+      tmpr1=bndpNm(k,1)
+      tmpr2=bndpNm(k,2)
+      tmpr5=dsqrt(grav*dep(k))*eta(k2)
+
+      tmpr3=p(k)*tmpr2*tmpr2 - q(k)*tmpr1*tmpr2 + tmpr5*tmpr1
+      tmpr4=-p(k)*tmpr1*tmpr2 + q(k)*tmpr1*tmpr1 + tmpr5*tmpr2
+      p(k)=tmpr3
+      q(k)=tmpr4      
+    enddo    
 
         
     !! Output
     if(mod(itime,fileOut).eq.0) then            
       call out4NXML(probname,npl,npt,nele,ifl(3),itime,&
-        conn,lon,lat,p,q,eta,dep,wetpoi,pr,windTx,windTy,pObj)
+        conn,lon,lat,p,q,eta,dep,wetpoi,pr,windTx,windTy)
     endif
 
     !! Probe write

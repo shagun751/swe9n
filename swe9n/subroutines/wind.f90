@@ -61,6 +61,9 @@ implicit none
   real(kind=c_K2)::rho,cd,rhoA,pDrop,al,pn,pc,dr,w
   real(kind=c_K2)::csl,snl,sn,cs,pmax,rMax
 
+  integer(kind=C_K1):: i
+  real(kind=c_K2):: tmpr1, tmpr2
+
   rhoA=1.1d0
   rho=rhoA !! I think this is rho_air/rho_water
   al=20d0*pi/180d0
@@ -130,6 +133,9 @@ implicit none
   real(kind=c_K2)::windX0,windY0
   real(kind=c_K2)::rho,cd,rhoA,pDrop,al,pn,pc,dr,w
   real(kind=c_K2)::csl,snl,sn,cs,pmax,rMax
+
+  integer(kind=C_K1):: i
+  real(kind=c_K2):: tmpr1, tmpr2
 
   rhoA=1.225d0
   rho=rhoA !! I think this is rho_air/rho_water
@@ -202,6 +208,9 @@ implicit none
   real(kind=c_K2)::dir1,dir2,dirStorm,dirNode
   real(kind=c_K2),parameter::cdLimit=0.0035d0 !!Garratt Limit
   real(kind=c_K2)::secLim(6,2),secWei(3),secCd(3)
+
+  integer(kind=C_K1):: i
+  real(kind=c_K2):: tmpr1, tmpr2
 
   secLim(1,:)=(/ 0d0, 40d0  /)
   secLim(2,:)=(/ 40d0, 130d0  /)
@@ -360,6 +369,9 @@ implicit none
   real(kind=c_K2)::dir1,dir2,dirStorm,dirNode
   real(kind=c_K2),parameter::cdLimit=0.0035d0 !!Garratt Limit
   real(kind=c_K2)::secLim(6,2),secWei(3),secCd(3)
+
+  integer(kind=C_K1):: i
+  real(kind=c_K2):: tmpr1, tmpr2
 
   secLim(1,:)=(/ 0d0, 40d0  /)
   secLim(2,:)=(/ 40d0, 130d0  /)
@@ -538,6 +550,9 @@ implicit none
   real(kind=c_K2)::dir1,dir2,dirStorm,dirNode
   real(kind=c_K2),parameter::cdLimit=0.0035d0 !!Garratt Limit
   real(kind=c_K2)::secLim(6,2),secWei(3),secCd(3)
+
+  integer(kind=C_K1):: i
+  real(kind=c_K2):: tmpr1, tmpr2
 
   !! Holland formula gives geostropic winds. 
   !! The Drag coeff in for U_10 which is 10m above sea level
@@ -724,6 +739,9 @@ implicit none
   integer(kind=C_K1),intent(inout)::cycP
   real(kind=C_K2),intent(in)::cycInf(cycN,5),rtime
   real(kind=C_K2),intent(out)::windLon,windLat,windR0,windWm
+
+  integer(kind=C_K1):: i, j, k
+  real(kind=c_K2):: tmpr1, tmpr2
 
   if(cycInf(cycP+1,1).lt.rtime) cycP=cycP+1
   i=cycP

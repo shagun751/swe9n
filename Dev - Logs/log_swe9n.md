@@ -12,38 +12,7 @@ continued from swe9n\_v5.34ea.sqB.tA
 - OpenMP parallelisation
   
 1. [GWCE Model Notes](./gwce_model_notes.md)
-1. [Initial development log](#log_swe9n_v0001)
-
------------------------------------------------
-
-<a name = 'log_swe9n_v0001' />
-
-## Initial development log
-
-1. [TBD : TBD : TBD [2020-03-13]](#log_swe9n_v0001_1)
-
-### Attempting
-- To Be Filled
-
-
-### List of Work
-- [x] To be filled
-- [x]
-
------------------------------------------------
-
-<a name = 'log_swe9n_v0001_1' />
-
-### TBD : TBD : TBD [2020-03-13]
-- To be filled.
-
-|  |
-| :-------------: |
-| **Figure :** Figure template. |
-| <img width="70%" src="./windShear.jpg"> |
-
-
-##### Example lowest sub-heading
+1. [Initial development log](./log_swe9n_v0001.md)
 
 -----------------------------------------------
 

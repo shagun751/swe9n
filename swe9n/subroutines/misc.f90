@@ -20,12 +20,13 @@ implicit none
 end subroutine hex2dec
 
 
+
 subroutine mergeSort(maxNePoi,nNePoi,poi2poi)
 implicit none
   integer(kind=4),intent(in)::maxNePoi,nNePoi
   integer(kind=4),intent(inout)::poi2poi(maxNePoi)
   integer(kind=4)::temp(maxNePoi),i,j,k,l,m
-  integer(kind=4)::istart,imiddle,iend,width
+  integer(kind=4)::istart,imiddle,iend,width  
 
   temp=0
   width=1
@@ -55,6 +56,7 @@ implicit none
 end subroutine mergeSort
 
 
+
 subroutine printMat(npt,nnzt,ivf,jvf,gMat)
 use basicVars
 implicit none
@@ -62,6 +64,8 @@ implicit none
   integer(kind=C_K1),intent(in)::npt,nnzt
   integer(kind=C_K1),intent(in)::ivf(npt+1),jvf(nnzt)
   real(kind=C_K2),intent(in)::gMat(nnzt)
+
+  integer(kind=C_K1):: i, k, k2, j  
 
   do i=1,npt
     k=ivf(i)
@@ -74,6 +78,8 @@ implicit none
   enddo
 end subroutine printMat
 
+
+
 subroutine chkMat(npt,nnzt,ivf,jvf,gN)
 use basicVars
 implicit none
@@ -81,6 +87,8 @@ implicit none
   integer(kind=C_K1),intent(in)::npt,nnzt
   integer(kind=C_K1),intent(in)::ivf(npt+1),jvf(nnzt)
   real(kind=C_K2),intent(in)::gN(nnzt)  
+
+  integer(kind=C_K1):: i, k, k2, j, l  
 
   do i=1,npt
     k=ivf(i)
@@ -101,6 +109,7 @@ implicit none
 end subroutine chkMat
 
 
+
 subroutine eleToGlob(npt,nele,nnzt,conn,ivf,jvf,elejvf9x9)
 use basicVars
 implicit none
@@ -108,6 +117,9 @@ implicit none
   integer(kind=C_K1),intent(in)::npt,nele,nnzt,conn(nele,9)
   integer(kind=C_K1),intent(in)::ivf(npt+1),jvf(nnzt)
   integer(kind=C_K1),intent(out)::elejvf9x9(nele,81)
+
+  integer(kind=C_K1):: iel, na(9), i, i2, k, k2, j, j2
+  integer(kind=C_K1):: l, l2
 
   do iel=1,nele
     na=conn(iel,:)

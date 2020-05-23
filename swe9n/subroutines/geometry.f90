@@ -7,6 +7,8 @@ implicit none
   integer(kind=C_K1),allocatable::mat1(:),mat2a(:,:),mat2b(:,:)
   integer(kind=C_K1)::mat3(4,4)
   integer(kind=C_K1)::ln1,ln2,qp
+  integer(kind=C_K1):: tmpi1, iel, i, j, i2, k
+  real(kind=C_K2):: tmpr1, tmpr2, tmpr3
 
   real(kind=C_K2),intent(inout)::coorx(npt),coory(npt),dep(npt)
 
@@ -109,6 +111,7 @@ implicit none
 end subroutine middleNodes
 
 
+
 subroutine bndMiddleNodes(nele,nbnd,conn,mabnd)
 use basicVars
 implicit none
@@ -116,6 +119,7 @@ implicit none
   integer(kind=C_K1),intent(in)::nele,nbnd,conn(nele,9)
   integer(kind=C_K1),intent(inout)::mabnd(nbnd,6)
   integer(kind=C_K1)::mat1(4),mat2(4,4)
+  integer(kind=C_K1):: i2, n1, n2, iel, i, k2, k  
 
   mat1=(/ 2,3,4,1 /)    
 
@@ -154,6 +158,7 @@ implicit none
 end subroutine bndMiddleNodes
 
 
+
 subroutine nodeConn(npl,npt,nele,conn,poi2poi,npoisur)
 use basicVars
 implicit none
@@ -161,6 +166,7 @@ implicit none
   integer(kind=C_K1),intent(in)::npl,npt,nele,conn(nele,9)
   integer(kind=C_K1),intent(out)::poi2poi(npt,maxNePoi)
   integer(kind=C_K1),intent(out)::npoisur(npt,3)
+  integer(kind=C_K1):: iel, na(9), n1, n2, i2, j, l  
 
   poi2poi=0
   npoisur=0
@@ -192,6 +198,7 @@ implicit none
 end subroutine nodeConn
 
 
+
 subroutine bndNormal(npt,nbnd,nbndpoi,mabnd,coorx,coory,&
   bnd11p,bnd12p,bndLen,bndpNm)
 use basicVars
@@ -204,6 +211,9 @@ implicit none
   integer(kind=C_K1),allocatable::tmpia(:,:)
   real(kind=C_K2),intent(in)::coorx(npt),coory(npt)
   real(kind=C_K2),intent(out)::bndpNm(npt,2),bndLen(nbnd)
+
+  integer(kind=C_K1):: k, i, na(9), l, j, j2, l2
+  real(kind=C_K2):: tmpr1, tmpr2
 
   allocate(tmpia(nbndpoi,2))
 
@@ -294,12 +304,17 @@ implicit none
   write(tf,*)'[MSG] BndNode sorting and normal done'
 end subroutine bndNormal
 
+
+
 subroutine normaliseNorm(npt,nbndp,bndp,bndpNm)
 use basicVars
 implicit none
 
   integer(kind=C_K1),intent(in)::npt,nbndp,bndp(nbndp)
   real(kind=C_K2),intent(inout)::bndpNm(npt,2)
+
+  integer(kind=C_K1):: i, k
+  real(kind=C_K2):: tmpr1, tmpr2, tmpr3
 
   do i=1,nbndp
     k=bndp(i)
@@ -312,6 +327,8 @@ implicit none
 
 end subroutine normaliseNorm
 
+
+
 subroutine calcCourant(npt,nele,conn,coorx,coory,dep,dt,cour)
 use basicVars
 implicit none
@@ -321,6 +338,9 @@ implicit none
   real(kind=C_K2),intent(in)::dep(npt),dt
   real(kind=C_K2),intent(out)::cour(npt)
   real(kind=C_K2),allocatable::couA(:),couB(:)
+
+  integer(kind=C_K1):: iel, na(9)
+  real(kind=C_K2):: tmpr1
 
   allocate(couA(npt),couB(npt))
 

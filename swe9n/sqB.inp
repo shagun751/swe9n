@@ -30,3 +30,7 @@ Q) Probe location (Lon Lat)
 81		12.5	!P2
 80.5	12		!P3
 81		11.5	!P4
+
+Q) Airy Wave Input
+Q) Time-period (s), Height (m), Depth (m)
+480, -1.0, 4000

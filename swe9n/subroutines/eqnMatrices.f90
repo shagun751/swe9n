@@ -8,6 +8,8 @@ implicit none
   real(kind=C_K2),intent(in)::shW(9)
   real(kind=C_K2),intent(out)::gM1(npt)
 
+  integer(kind=C_K1)::iel, i, i2, na(9)
+
   gM1=0d0
   do iel=1,nele
     na=conn(iel,:)
@@ -32,6 +34,8 @@ implicit none
   ! enddo
 end subroutine left
 
+
+
 subroutine calcMat(shW,D,sc,Ai,Aj,lN)
 use basicVars
 implicit none
@@ -39,6 +43,9 @@ implicit none
   real(kind=C_K2),intent(in)::shW(9),D(9),sc(9)
   real(kind=C_K2),intent(in)::Ai(9,9),Aj(9,9)
   real(kind=C_K2),intent(out)::lN(9,9)
+
+  integer(kind=C_K1)::i, i2, j
+  real(kind=C_K2)::tmpr1, tmpr2
 
   lN=0d0
 
@@ -55,6 +62,7 @@ implicit none
 end subroutine calcMat
 
 
+
 subroutine calcMatT2(shW,D,sc,Ai,Aj,lN)
 use basicVars
 implicit none
@@ -62,6 +70,9 @@ implicit none
   real(kind=C_K2),intent(in)::shW(9),D(9),sc(9)
   real(kind=C_K2),intent(in)::Ai(9,9),Aj(9,9)
   real(kind=C_K2),intent(out)::lN(81)
+
+  integer(kind=C_K1)::i, i2, j, l2
+  real(kind=C_K2)::tmpr1, tmpr2
 
   lN=0d0
 
@@ -97,6 +108,8 @@ implicit none
   real(kind=C_K2)::lN11(81),lN12(81),lN(81),lN22(81)
   real(kind=C_K2)::lDep(9),lU(9),lV(9)  
   integer(kind=C_K1)::thidx(81)  
+
+  integer(kind=C_K1)::i, i2, j, l, l2, na(9), iel  
 
   gN11=0d0
   gN12=0d0
@@ -173,6 +186,8 @@ implicit none
   real(kind=C_K2),intent(in)::shW(9)
   real(kind=C_K2),intent(out)::gN21(nnzt),gN31(nnzt)  
   real(kind=C_K2)::lN21(9,9),lN31(9,9),lN(9,9),sc(9)
+
+  integer(kind=C_K1)::iel, na(9), i, i2, j, j2, k, k2, l, l2
 
   gN21=0d0
   gN31=0d0
@@ -251,6 +266,8 @@ implicit none
   real(kind=C_K2)::shFX(9,9),shFY(9,9)
   real(kind=C_K2)::lDep(9),lSc(9),lTau(9)
   real(kind=C_K2)::lTauDx(9),lTauDy(9)
+
+  integer(kind=C_K1)::iel, na(9), i, j, k  
 
   gD11=0d0
   gD13=0d0
@@ -358,6 +375,8 @@ implicit none
   real(kind=C_K2)::lUDx(9),lVDy(9),lSc(9)
   real(kind=C_K2)::lUDy,lVDx,lnu,lAr
   real(kind=C_K2)::lTxx(9),lTxy(9),lTyy(9),lTyx(9)
+
+  integer(kind=C_K1)::iel, k, j, na(9)  
 
   gD21=0d0
   gD25=0d0
@@ -469,6 +488,8 @@ implicit none
   real(kind=C_K2)::lU(9),lV(9),lH(9),lAr
   real(kind=C_K2)::lnu,lUDx,lUDy,lVDx,lVDy
   real(kind=C_K2)::lbnTx(9),lbnTy(9)
+
+  integer(kind=C_K1)::iel, na(9), l, k, k2  
 
   bnTx=0d0
   bnTy=0d0

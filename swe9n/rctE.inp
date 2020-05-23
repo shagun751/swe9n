@@ -1,0 +1,33 @@
+## Time settings
+Q) Time-step (s)
+0.5
+Q) Simulation Time (s)
+8000
+Q) Output file interval (s)
+120
+
+Q)Coord in lon lat? (.true./.false.)(.true. will enable coriolis force)
+.false.
+
+Q) Tau0 for GWCE
+0.0
+Q) Weights for Eta Semi-implicit (k+1, k, k-1)
+0.60	0.20	0.20
+Q) Minimum depth
+5
+Q) Depth Smoothing Iterations
+10
+
+Q) Number of OpenMP Threads
+4
+
+## Probes
+Q) Number of Probes
+2
+Q) Probe location (Lon Lat)
+80.27	13.08	!Chennai
+79.80	11.94	!Pondicherry
+
+Q) Airy Wave Input
+Q) Time-period (s), Height (m), Depth (m)
+480, -1.0, 4000
