@@ -379,3 +379,117 @@ contains
 
 end module waveFileModule
 !!-----------------------End waveFileModule------------------------!!
+
+
+
+!!-----------------------------inletBC-----------------------------!!
+subroutine inletBC(npt, nbndpoi, bnd11p, rTime, dep, bndpNm, &
+  pObj, wvIn, eta, p, q)
+use meshFreeMod
+use airyWaveModule
+implicit none
+
+  integer(kind=C_K1),intent(in)::npt, nbndpoi
+  integer(kind=C_K1),intent(in)::bnd11p(0:nbndpoi)
+  real(kind=C_K2),intent(in)::bndpNm(npt,2), dep(npt), rTime
+  type(mfPoiTyp),intent(in)::pObj(npt)  
+  type(airyType),intent(in)::wvIn
+  real(kind=C_K2),intent(inout)::eta(npt), p(npt), q(npt)
+
+  integer(kind=C_K1)::i, j, k, neid
+  real(kind=C_K2)::wvEta, nx, ny, c, etaDn, pn
+
+  do i = 1, bnd11p(0)
+    k = bnd11p(i)
+    nx = bndpNm(k,1)
+    ny = bndpNm(k,2)
+    call wvIn%getEta(rTime, 0d0, 0d0, wvEta)
+    eta(k) = wvEta
+    c = dsqrt(grav*dep(k)) 
+
+    ! etaDn = 0d0
+    ! do j = 1, pObj(k)%nn
+    !   neid = pObj(k)%neid(j)
+    !   etaDn = etaDn + pObj(k)%phiDx(j)*eta(neid)*nx &
+    !     + pObj(k)%phiDy(j)*eta(neid)*ny
+    ! enddo
+
+    pn = c*wvEta !+ c*etaDn*pObj(k)%rad
+
+    p(k) = -pn*nx
+    q(k) = -pn*ny
+  enddo  
+
+end subroutine inletBC
+!!---------------------------End inletBC---------------------------!!
+
+
+
+!!----------------------------outletBC-----------------------------!!
+subroutine outletBC(npt, nbndpoi, bnd14p, rTime, dep, bndpNm, &
+  pObj, eta, p, q)
+use meshFreeMod
+use airyWaveModule
+implicit none
+
+  integer(kind=C_K1),intent(in)::npt, nbndpoi
+  integer(kind=C_K1),intent(in)::bnd14p(0:nbndpoi)
+  real(kind=C_K2),intent(in)::bndpNm(npt,2), dep(npt), rTime
+  type(mfPoiTyp),intent(in)::pObj(npt)    
+  real(kind=C_K2),intent(inout)::eta(npt), p(npt), q(npt)
+
+  integer(kind=C_K1)::i, j, k, neid
+  real(kind=C_K2)::wvEta, nx, ny, c, etaDx, etaDy, etaNei, dr, pn  
+
+  do i = 1, bnd14p(0)
+    k = bnd14p(i)
+    nx = bndpNm(k,1)
+    ny = bndpNm(k,2)    
+    c = dsqrt(grav*dep(k)) 
+
+    etaDx = 0d0
+    etaDy = 0d0
+    do j = 1, pObj(k)%nn
+      neid = pObj(k)%neid(j)
+      etaDx = etaDx + pObj(k)%phiDx(j)*eta(neid)
+      etaDy = etaDy + pObj(k)%phiDy(j)*eta(neid)
+    enddo
+    dr = pObj(k)%rad
+    etaNei = eta(k) + etaDx*(-dr*nx) + etaDy*(-dr*ny)
+
+    pn = c*etaNei
+
+    ! if(i.eq.9)then
+    !   write(8,'(4F15.6)')rTime, pObj(k)%rad/1000d0, eta(k), etaNei
+    ! endif
+
+    p(k) = pn*nx
+    q(k) = pn*ny
+  enddo  
+
+end subroutine outletBC
+!!--------------------------End outletBC---------------------------!!
+
+
+
+! !!--------------------------outletNormVel--------------------------!!
+! subroutine outletNormVel(npt, nbndpoi, bnd14p, dt, dep, &
+!   etat0, etat1, etat2, pn, pndt)
+! use basicVars
+! implicit none
+  
+!   integer(kind=C_K1),intent(in)::npt, nbndpoi, bnd14p(0:nbndpoi)
+!   real(kind=C_K2),intent(in)::dt, dep(npt), etat0(npt)
+!   real(kind=C_K2),intent(in)::etat1(npt), etat2(npt)
+!   real(kind=C_K2),intent(out)::pn(npt), pndt(npt)
+
+!   integer(kind=C_K1)::i, k
+!   real(kind=C_K2)::  
+
+!   do i=1,bnd14p(0)
+!     k = bnd14p(i)
+!   enddo
+
+
+! end subroutine outletNormVel
+! !!------------------------End outletNormVel------------------------!!

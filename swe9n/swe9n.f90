@@ -44,13 +44,13 @@ implicit none
   logical:: ex
 
   integer(kind=C_K1)::npl,npq,npt,nele,nbnd,nbndtyp,nnzt
-  integer(kind=C_K1)::nbndpoi,nmidpoi
+  integer(kind=C_K1)::nbndpoi
   integer(kind=C_K1)::itime,ntime,fileOut
   integer(kind=C_K1)::cycN,cycP,ompNThread,depIter
   integer(kind=C_K1)::windDragForm
   integer(kind=C_K1),allocatable::conn(:,:),mabnd(:,:)
   integer(kind=C_K1),allocatable::poi2poi(:,:)
-  integer(kind=C_K1),allocatable::bnd11p(:),bnd12p(:)
+  integer(kind=C_K1),allocatable::bnd11p(:),bnd12p(:),bnd14p(:)
   integer(kind=C_K1),allocatable::npoisur(:,:)
   integer(kind=C_K1),allocatable::ivf(:),jvf(:)  
   integer(kind=C_K1),allocatable::wetpoi(:),midpoi(:)
@@ -75,6 +75,7 @@ implicit none
   real(kind=C_K2),allocatable::p(:),pt1(:),pt2(:)
   real(kind=C_K2),allocatable::q(:),qt1(:),qt2(:)
   real(kind=C_K2),allocatable::jxt1(:),jyt1(:)
+  real(kind=C_K2),allocatable::pn(:),pndt(:) !! For outlet
   real(kind=C_K2),allocatable::gM0(:),gK11(:),gK21(:),gK31(:)
   real(kind=C_K2),allocatable::gK41(:),gK51(:)  
   real(kind=C_K2),allocatable::gK61(:),gK71(:),gK81(:)
@@ -379,10 +380,10 @@ implicit none
   endif
 
   nbndpoi=2*nbnd !!Lin + quad bnd nodes
-  allocate(bnd11p(0:nbndpoi),bnd12p(0:nbndpoi))
+  allocate(bnd11p(0:nbndpoi),bnd12p(0:nbndpoi),bnd14p(0:nbndpoi))
   allocate(bndLen(nbnd),bndpNm(npt,2))
   call bndNormal(npt,nbnd,nbndpoi,mabnd,coorx,coory,&
-    bnd11p,bnd12p,bndLen,bndpNm)
+    bnd11p,bnd12p,bnd14p,bndLen,bndpNm)  
 
   ! !! Debug comments
   ! write(tf,*)"[DBG] Nodes all"
@@ -463,6 +464,7 @@ implicit none
   allocate(p(npt),pt1(npt),pt2(npt))
   allocate(q(npt),qt1(npt),qt2(npt))
   allocate(jxt1(npt),jyt1(npt))
+  allocate(pn(npt), pndt(npt))
   allocate(gM0(npt),gK11(npt),gK21(npt),gK31(npt))  
   allocate(gK41(npt),gK51(npt))
   allocate(gK61(npt),gK71(npt),gK81(npt))
@@ -824,16 +826,11 @@ implicit none
       q(k)=tmpr4      
     enddo    
 
-    ! !! Forcing Inlet BC
-    ! do i = 1, bnd11p(0)
-    !   k = bnd11p(i)
-    !   tmpr1 = bndpNm(k,1)
-    !   tmpr2 = bndpNm(k,2)
-    !   call wvIn%getEta(rTime, 0d0, 0d0, tmpr3)
-    !   tmpr4 = dsqrt(grav*dep(k)) 
-    !   p(k) = -tmpr4*tmpr3*tmpr1
-    !   q(k) = -tmpr4*tmpr3*tmpr2
-    ! enddo
+    !! Forcing Inlet and Outlet BC
+    call inletBC(npt, nbndpoi, bnd11p, rTime, dep, bndpNm, &
+      pObj, wvIn, eta, p, q)
+    ! call outletBC(npt, nbndpoi, bnd14p, rTime, dep, bndpNm, &
+    !   pObj, eta, p, q)
     
     !! Corrector Steps
     etat0sq=eta*eta
@@ -907,20 +904,11 @@ implicit none
       q(k)=tmpr4      
     enddo    
 
-    ! !! Forcing Inlet BC
-    ! do i = 1, bnd11p(0)
-    !   k = bnd11p(i)
-    !   tmpr1 = bndpNm(k,1)
-    !   tmpr2 = bndpNm(k,2)
-    !   call wvIn%getEta(rTime, 0d0, 0d0, tmpr3)
-    !   tmpr4 = dsqrt(grav*dep(k)) 
-    !   p(k) = -tmpr4*tmpr3*tmpr1
-    !   q(k) = -tmpr4*tmpr3*tmpr2
-      
-    !   if(i.eq.1)then
-    !     write(8,'(4F15.6)')rTime, tmpr3, p(k), q(k)
-    !   endif
-    ! enddo
+    !! Forcing Inlet and Outlet BC
+    call inletBC(npt, nbndpoi, bnd11p, rTime, dep, bndpNm, &
+      pObj, wvIn, eta, p, q)
+    ! call outletBC(npt, nbndpoi, bnd14p, rTime, dep, bndpNm, &
+    !   pObj, eta, p, q)
 
         
     !! Output

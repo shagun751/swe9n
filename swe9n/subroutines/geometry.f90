@@ -200,7 +200,7 @@ end subroutine nodeConn
 
 
 subroutine bndNormal(npt,nbnd,nbndpoi,mabnd,coorx,coory,&
-  bnd11p,bnd12p,bndLen,bndpNm)
+  bnd11p,bnd12p,bnd14p,bndLen,bndpNm)
 use basicVars
 implicit none
     
@@ -208,17 +208,22 @@ implicit none
   integer(kind=C_K1),intent(in)::mabnd(nbnd,6)
   integer(kind=C_K1),intent(out)::bnd11p(0:nbndpoi)
   integer(kind=C_K1),intent(out)::bnd12p(0:nbndpoi)
+  integer(kind=C_K1),intent(out)::bnd14p(0:nbndpoi)  
   integer(kind=C_K1),allocatable::tmpia(:,:)
   real(kind=C_K2),intent(in)::coorx(npt),coory(npt)
   real(kind=C_K2),intent(out)::bndpNm(npt,2),bndLen(nbnd)
 
-  integer(kind=C_K1):: k, i, na(9), l, j, j2, l2
+  integer(kind=C_K1):: k, i, na(9), l, j, j2, l2, l4
+  integer(kind=C_K1)::bndPref(5), pref1, pref2
   real(kind=C_K2):: tmpr1, tmpr2
 
   allocate(tmpia(nbndpoi,2))
 
+  bndPref = (/ 14, 11, 12, 13, 0 /)
+
   bnd11p=0
   bnd12p=0
+  bnd14p=0
   bndpNm=0d0
   tmpia=0
 
@@ -249,11 +254,24 @@ implicit none
       tmpia(k,1)=na(j)
       tmpia(k,2)=l
       j2=k
-      111 continue
-      !Preferance for bndtype 11 - higher
-      if((tmpia(j2,2).ne.11).and.(l.eq.11)) then
-        tmpia(j2,2)=11
+      111 continue      
+
+      do pref1=1,5
+        if(tmpia(j2,2).eq.bndPref(pref1)) exit
+      enddo
+
+      do pref2=1,5
+        if(l.eq.bndPref(pref2)) exit
+      enddo
+
+      tmpia(j2,2) = bndPref( min(pref1, pref2) )      
+
+      if(tmpia(j2,2).eq.0)then
+        write(tf,*)"[ERR] Bnd type 0 at node",j2
+        write(tf,*)"[ERR] ",l,tmpia(j2,2)
+        stop
       endif
+
     enddo
   enddo
 
@@ -267,13 +285,20 @@ implicit none
 
   l=0
   l2=0
+  l4=0
   do i=1,nbndpoi
     if(tmpia(i,2).eq.11)then
       l=l+1
       bnd11p(l)=tmpia(i,1)
+    
     elseif(tmpia(i,2).eq.12)then
       l2=l2+1
       bnd12p(l2)=tmpia(i,1)
+    
+    elseif(tmpia(i,2).eq.14)then
+      l4=l4+1
+      bnd14p(l4)=tmpia(i,1)
+    
     else
       write(tf,*)"[ERR] Unknown bndNode type",tmpia(i,:)
       stop
@@ -281,6 +306,7 @@ implicit none
   enddo
   bnd11p(0)=l
   bnd12p(0)=l2
+  bnd14p(0)=l4
   
   ! !!Debug comments
   ! write(tf,*)'[DBG] bnd11p',bnd11p(0)

@@ -1,13 +1,15 @@
 Holland Coefficients (A	B)
 4.04d6	1.33
+Reduction factor (Wind PressureDrop) Check Holland Geostropic to 10m above sea
+0.7	1.0
+Wind Drag Formula (1 - Garratt, 2 - Powell)
+1
 
 NumOfTimeSteps
 2
 Time(s) Longitude   Latitude    Radius(m)   WMax(m/s)
 0	85	13.3	80000	0
 162000	79.1	12.7	80000	0
-
-
 
 ## 
 Taking B = 1.3

@@ -21,9 +21,11 @@
 
 <a name = 'log_swe9n_v0001_3' />
 
-### Feature : Include airyWaveModule [2020-05-24]
+### Feature : Include airyWaveModule [2020-05-25]
 - Module _airyWaveModule_ inside _modsInletBC.f90_ is added from Bsnq for tidal input.
 - Will mostly be used only to calculate &eta;, as p = sqrt(gH) &eta;
+- The outlet definitely requires the calculation of the boundary integral in the continuity equation (&eta; equation), which has been set to zero assuming wall BC.
+	- That requires calculation of Pn and d(Pn)/dt, where Pn is the normal velocity.
 
 -----------------------------------------------
 

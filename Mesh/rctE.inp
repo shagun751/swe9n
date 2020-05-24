@@ -4,7 +4,7 @@ Q) Time-step (s)
 Q) Simulation Time (s)
 8000
 Q) Output file interval (s)
-120
+240
 
 Q)Coord in lon lat? (.true./.false.)(.true. will enable coriolis force)
 .false.
@@ -30,4 +30,4 @@ Q) Probe location (Lon Lat)
 
 Q) Airy Wave Input
 Q) Time-period (s), Height (m), Depth (m)
-480, -1.0, 4000
+960, -1.0, 4000

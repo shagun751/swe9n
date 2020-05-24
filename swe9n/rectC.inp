@@ -18,13 +18,8 @@ Q) Minimum depth
 Q) Depth Smoothing Iterations
 10
 
-Q) Bottom friction coeff
-0d0 !0.015
-Q)Smagorinsky coeff
-0d0 !0.2d0
-
 Q) Number of OpenMP Threads
-2
+4
 
 ## Probes
 Q) Number of Probes
@@ -32,3 +27,7 @@ Q) Number of Probes
 Q) Probe location (Lon Lat)
 80.27	13.08	!Chennai
 79.80	11.94	!Pondicherry
+
+Q) Airy Wave Input
+Q) Time-period (s), Height (m), Depth (m)
+960, -0.4, 2000
