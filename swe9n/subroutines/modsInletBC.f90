@@ -425,8 +425,8 @@ end subroutine inletBC
 
 
 
-!!----------------------------outletBC-----------------------------!!
-subroutine outletBC(npt, nbndpoi, bnd14p, rTime, dep, bndpNm, &
+!!-----------------------------openBC------------------------------!!
+subroutine openBC(npt, nbndpoi, bnd14p, rTime, dep, bndpNm, &
   pObj, eta, p, q)
 use meshFreeMod
 use airyWaveModule
@@ -440,6 +440,12 @@ implicit none
 
   integer(kind=C_K1)::i, j, k, neid
   real(kind=C_K2)::wvEta, nx, ny, c, etaDx, etaDy, etaNei, dr, pn  
+  real(kind=C_K2)::tmpr3, tmpr4
+
+  ! integer(kind=C_K1)::test(3,2),i2,j2
+  ! test(1,:)=(/ 2254, 6507 /)
+  ! test(2,:)=(/ 2255, 6509 /)
+  ! test(3,:)=(/ 6508, 8513 /)
 
   do i = 1, bnd14p(0)
     k = bnd14p(i)
@@ -455,41 +461,28 @@ implicit none
       etaDy = etaDy + pObj(k)%phiDy(j)*eta(neid)
     enddo
     dr = pObj(k)%rad
-    etaNei = eta(k) + etaDx*(-dr*nx) + etaDy*(-dr*ny)
+    etaNei = eta(k) - etaDx*(dr*nx) - etaDy*(dr*ny)
 
-    pn = c*etaNei
+    pn = c*etaNei    
 
     ! if(i.eq.9)then
     !   write(8,'(4F15.6)')rTime, pObj(k)%rad/1000d0, eta(k), etaNei
     ! endif
 
-    p(k) = pn*nx
-    q(k) = pn*ny
-  enddo  
+    tmpr3 = p(k)*ny*ny - q(k)*nx*ny + pn*nx
+    tmpr4 = -p(k)*nx*ny + q(k)*nx*nx + pn*ny    
+    p(k) = tmpr3
+    q(k) = tmpr4
 
-end subroutine outletBC
-!!--------------------------End outletBC---------------------------!!
+    ! do i2=1,3
+    !   if(test(i2,1).eq.k)then
+    !     write(8,'(2I10,2F20.10)')k,test(i2,1),eta(test(i2,2)),etaNei
+    !   endif
+    ! enddo    
 
+  enddo    
+  ! write(8,*)
+  ! write(8,*)
 
-
-! !!--------------------------outletNormVel--------------------------!!
-! subroutine outletNormVel(npt, nbndpoi, bnd14p, dt, dep, &
-!   etat0, etat1, etat2, pn, pndt)
-! use basicVars
-! implicit none
-  
-!   integer(kind=C_K1),intent(in)::npt, nbndpoi, bnd14p(0:nbndpoi)
-!   real(kind=C_K2),intent(in)::dt, dep(npt), etat0(npt)
-!   real(kind=C_K2),intent(in)::etat1(npt), etat2(npt)
-!   real(kind=C_K2),intent(out)::pn(npt), pndt(npt)
-
-!   integer(kind=C_K1)::i, k
-!   real(kind=C_K2)::  
-
-!   do i=1,bnd14p(0)
-!     k = bnd14p(i)
-!   enddo
-
-
-! end subroutine outletNormVel
-! !!------------------------End outletNormVel------------------------!!
+end subroutine openBC
+!!---------------------------End openBC----------------------------!!

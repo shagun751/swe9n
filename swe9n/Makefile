@@ -11,13 +11,13 @@ COMPILER=ifort
 ifeq ($(COMPILER),ifort)
 	MODPATH=-module subroutines
 	C_COMP=icc
-	PARA_FLAGS=-O3 -lstdc++ -fopenmp -L/usr/local/cuda/lib64	
-	#PARA_FLAGS=-lstdc++ -fopenmp -L/usr/local/cuda/lib64	
+	#PARA_FLAGS=-O3 -lstdc++ -fopenmp -L/usr/local/cuda/lib64	
+	PARA_FLAGS=-lstdc++ -fopenmp -L/usr/local/cuda/lib64	
 else ifeq ($(COMPILER),gfortran)
 	MODPATH=-J subroutines
 	C_COMP=g++
-	PARA_FLAGS=-O3 -lstdc++ -fopenmp -L/usr/local/cuda/lib64	
-	#PARA_FLAGS=-lstdc++ -fopenmp -L/usr/local/cuda/lib64	
+	#PARA_FLAGS=-O3 -lstdc++ -fopenmp -L/usr/local/cuda/lib64	
+	PARA_FLAGS=-lstdc++ -fopenmp -L/usr/local/cuda/lib64	
 endif
 
 MAIN=swe9n

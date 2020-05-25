@@ -75,7 +75,7 @@ implicit none
   real(kind=C_K2),allocatable::p(:),pt1(:),pt2(:)
   real(kind=C_K2),allocatable::q(:),qt1(:),qt2(:)
   real(kind=C_K2),allocatable::jxt1(:),jyt1(:)
-  real(kind=C_K2),allocatable::pn(:),pndt(:) !! For outlet
+  real(kind=C_K2),allocatable::jxTilt1(:),jyTilt1(:) !! For Open BC
   real(kind=C_K2),allocatable::gM0(:),gK11(:),gK21(:),gK31(:)
   real(kind=C_K2),allocatable::gK41(:),gK51(:)  
   real(kind=C_K2),allocatable::gK61(:),gK71(:),gK81(:)
@@ -94,7 +94,7 @@ implicit none
   real(kind=C_K2),allocatable::windTx(:),windTy(:)
   real(kind=C_K2),allocatable::cycInf(:,:),pr(:),eleArea(:)
   real(kind=C_K2),allocatable::gTxx(:),gTxy(:),gTyx(:),gTyy(:)
-  real(kind=C_K2),allocatable::bnTx(:),bnTy(:)
+  real(kind=C_K2),allocatable::bnTx(:),bnTy(:), bnObc(:)
   real(kind=C_K2),allocatable::probeLoc(:,:),cour(:)
   real(kind=C_K2)::lR1,lR2,lR3,lR4,lR5,lR6,lR7
 
@@ -464,7 +464,7 @@ implicit none
   allocate(p(npt),pt1(npt),pt2(npt))
   allocate(q(npt),qt1(npt),qt2(npt))
   allocate(jxt1(npt),jyt1(npt))
-  allocate(pn(npt), pndt(npt))
+  allocate(jxTilt1(npt), jyTilt1(npt))
   allocate(gM0(npt),gK11(npt),gK21(npt),gK31(npt))  
   allocate(gK41(npt),gK51(npt))
   allocate(gK61(npt),gK71(npt),gK81(npt))
@@ -478,7 +478,7 @@ implicit none
   allocate(gR1(npt),gR2(npt),gR3(npt),gR4(npt))  
   allocate(gR5(npt),gR6(npt),gR7(npt))
   allocate(gTxx(npt),gTxy(npt),gTyx(npt),gTyy(npt))
-  allocate(bnTx(npt),bnTy(npt))
+  allocate(bnTx(npt),bnTy(npt), bnObc(npt))
   allocate(wetpoi(npt),midpoi(npt))  
   allocate(spngC(npt),cour(npt))
   allocate(windTx(npt),windTy(npt),pr(npt))    
@@ -607,7 +607,7 @@ implicit none
   !     u(i)=tmpr3*tmpr5/tmpr1
   !     eta(i)=tmpr5
   !   endif
-  ! enddo
+  ! enddo  
 !!--------------------End Initialisation----------------------!!
 
 !!---------------------Constant Matrices----------------------!!
@@ -693,7 +693,7 @@ implicit none
   do itime=1,ntime
     call system_clock(sysClk(2))
     rTime=rTime+dt
-    write(tf,'(" Time : ",I10," : ",F15.6)')itime,rTime  
+    write(tf,'(" Time : ",I10," : ",F15.6)')itime,rTime      
 
     etat2=etat1
     pt2=pt1
@@ -733,13 +733,10 @@ implicit none
     write(tf,'(" [CYC] ",A15,2F15.6)')"Position :",windLon(1),windLat(1)
     write(tf,'(" [CYC] ",A15,F15.6)')"Max Wind :",windWm(1)
     
-    call system_clock(sysClk(6))
+    call system_clock(sysClk(6))        
     call GWCErh2(npt,nele,nnzt,conn,jacb,shF,shFE,shFN,&
       shW,eleArea,elejvf9x9,ht1,ut1,vt1,gD21,gD25,gD35,&
-      gTxx,gTxy,gTyx,gTyy)            
-    call bndInt(npt,nele,nbnd,nnzt,conn,mabnd,jacb,shF,&
-      shFE,shFN,shW,eleArea,elejvf9x9,bndLen,bndpNm,&
-      ht1,ut1,vt1,bnTx,bnTy)
+      gTxx,gTxy,gTyx,gTyy)                
     call system_clock(sysClk(7))
 
     !! Cyclone wind            
@@ -782,9 +779,22 @@ implicit none
     jxt1=gR2/gK21
     jyt1=gR3/gK31
 
+    call obcCalcJxTil(npt, dep, jxt1, jyt1, etat1, pObj, &
+      jxTilt1, jyTilt1)
+    call bndInt(npt,nele,nbnd,nnzt,conn,mabnd,jacb,shF,&
+      shFE,shFN,shW,eleArea,elejvf9x9,bndLen,bndpNm, &
+      ht1, ut1, vt1, jxTilt1, jyTilt1, bnTx, bnTy, bnObc)
+    
+    ! write(8,'(I10, F20.10)')itime, rTime    
+    ! do k = 1, bnd14p(0)
+    !   i = bnd14p(k)      
+    !   write(8,'(I10, 3F20.10)')i, jxTilt1(i), jyTilt1(i), bnObc(i)
+    ! enddo
+    ! write(8,*)
+
     !! Solving for Eta 
     !! Predictor for P and Q
-    gR1=gR1+(gE12*etat2)  
+    gR1=gR1+(gE12*etat2) + (dt*dt*bnObc)
     gR4=gR4+(gE41*pt1)+(gE42*pt1)+(gE43*jxt1)
     gR5=gR5+(gE41*qt1)+(gE42*qt1)+(gE43*jyt1)     
     !$OMP PARALLEL DEFAULT(shared) &
@@ -826,11 +836,11 @@ implicit none
       q(k)=tmpr4      
     enddo    
 
-    !! Forcing Inlet and Outlet BC
+    !! Forcing Inlet and Open BC
     call inletBC(npt, nbndpoi, bnd11p, rTime, dep, bndpNm, &
-      pObj, wvIn, eta, p, q)
-    ! call outletBC(npt, nbndpoi, bnd14p, rTime, dep, bndpNm, &
-    !   pObj, eta, p, q)
+      pObj, wvIn, eta, p, q)    
+    call openBC(npt, nbndpoi, bnd14p, rTime, dep, bndpNm, &
+      pObj, eta, p, q)    
     
     !! Corrector Steps
     etat0sq=eta*eta
@@ -841,14 +851,14 @@ implicit none
     etaImp=etaTWei(1)*eta + etaTWei(2)*etat1 + etaTWei(3)*etat2
     gR1=0d0
     gR6=0d0
-    gR7=0d0
-    
+    gR7=0d0    
+
     call GWCErh2(npt,nele,nnzt,conn,jacb,shF,shFE,shFN,&
       shW,eleArea,elejvf9x9,ht0,ut0,vt0,gD21,gD25,gD35,&
       gTxx,gTxy,gTyx,gTyy)     
     call bndInt(npt,nele,nbnd,nnzt,conn,mabnd,jacb,shF,&
-      shFE,shFN,shW,eleArea,elejvf9x9,bndLen,bndpNm,&
-      ht0,ut0,vt0,bnTx,bnTy)  
+      shFE,shFN,shW,eleArea,elejvf9x9,bndLen,bndpNm, &
+      ht0, ut0, vt0, jxTilt1, jyTilt1, bnTx, bnTy, bnObc)    
 
     !! Cyclone wind        
     call windNew4b(windDragForm,RedFacW,RedFacP,dt,npt,lon,lat,&
@@ -858,7 +868,7 @@ implicit none
     !! Corrector for P and Q  
     !! [Note] : Do not forget to multiply by dt here 
     !!          when taking terms from Jx Jy eqn
-    gR1=gR1+(gE81*etat1)+(gE12*etat2)
+    gR1=gR1+(gE81*etat1)+(gE12*etat2) + (dt*dt*bnObc)
     gR6=gR6+(gE41*pt1)+(dt*gE23*q)+(dt*gE26*windTx)&
       +(dt*gEBot*uMagt0*ut0)+dt*(gTxx+gTxy+0d0*bnTx)
     gR7=gR7+(gE41*qt1)-(dt*gE23*p)+(dt*gE26*windTy)&
@@ -904,11 +914,11 @@ implicit none
       q(k)=tmpr4      
     enddo    
 
-    !! Forcing Inlet and Outlet BC
+    !! Forcing Inlet and Open BC
     call inletBC(npt, nbndpoi, bnd11p, rTime, dep, bndpNm, &
       pObj, wvIn, eta, p, q)
-    ! call outletBC(npt, nbndpoi, bnd14p, rTime, dep, bndpNm, &
-    !   pObj, eta, p, q)
+    call openBC(npt, nbndpoi, bnd14p, rTime, dep, bndpNm, &
+      pObj, eta, p, q)
 
         
     !! Output

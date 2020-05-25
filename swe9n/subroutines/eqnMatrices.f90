@@ -463,9 +463,11 @@ implicit none
 end subroutine GWCErh2
 
 
+
+!!-----------------------------bndInt------------------------------!!
 subroutine bndInt(npt,nele,nbnd,nnzt,conn,mabnd,jacb,shF,&
-  shFE,shFN,shW,eleArea,elejvf9x9,bndLen,bndpNm,&
-  ht1,ut1,vt1,bnTx,bnTy)
+  shFE,shFN,shW,eleArea,elejvf9x9,bndLen,bndpNm, &
+  ht1, ut1, vt1, jxTil, jyTil, bnTx, bnTy, bnObc)
 use basicVars
 use jacobianModule
 implicit none
@@ -473,26 +475,28 @@ implicit none
   integer(kind=C_K1),intent(in)::npt,nele,nbnd,nnzt
   integer(kind=C_K1),intent(in)::conn(nele,9),mabnd(nbnd,6)
   integer(kind=C_K1),intent(in)::elejvf9x9(nele,81)
-  integer(kind=C_K1)::bndIntP(4,3),lBndIntP(3)
+  integer(kind=C_K1)::bndIntP(4,3),lBndIntP(3),lBndTyp
   type(jacbType),intent(in)::jacb(nele)
   type(jacbType)::lJacb
   real(kind=C_K2),intent(in)::shF(9,9),shFE(9,9),shFN(9,9)
   real(kind=C_K2),intent(in)::shW(9),eleArea(nele)
   real(kind=C_K2),intent(in)::bndpNm(npt,2),bndLen(nbnd)
   real(kind=C_K2),intent(in)::ht1(npt),ut1(npt),vt1(npt)
-  real(kind=C_K2),intent(out)::bnTx(npt),bnTy(npt)
+  real(kind=C_K2),intent(in)::jxTil(npt), jyTil(npt)
+  real(kind=C_K2),intent(out)::bnTx(npt), bnTy(npt), bnObc(npt)
   real(kind=C_K2)::bndIntW(3),lIntW(3)
   real(kind=C_K2)::shFX(9),shFY(9)
   !real(kind=C_K2)::pnx(9),pny(9)
   real(kind=C_K2)::pnx,pny
   real(kind=C_K2)::lU(9),lV(9),lH(9),lAr
   real(kind=C_K2)::lnu,lUDx,lUDy,lVDx,lVDy
-  real(kind=C_K2)::lbnTx(9),lbnTy(9)
+  real(kind=C_K2)::lbnTx(9),lbnTy(9),lbnObc(9)
 
-  integer(kind=C_K1)::iel, na(9), l, k, k2  
+  integer(kind=C_K1)::iel, na(9), l, k, k2, j
 
   bnTx=0d0
   bnTy=0d0
+  bnObc=0d0
 
   bndIntW=(/  1d0/6d0,  4d0/6d0,  1d0/6d0  /)
   bndIntP(1,:)=(/  1,  5,  2 /)
@@ -501,11 +505,11 @@ implicit none
   bndIntP(4,:)=(/  4,  8,  1 /)
 
 
-  !$OMP PARALLEL DEFAULT(shared) &
-  !$OMP   PRIVATE(l,k,k2,iel,na,lJacb,lIntW,lBndIntP,&
-  !$OMP     lU,lV,lH,pnx,pny,lUDx,lUDy,lVDx,lVDy,&
-  !$OMP     shFX,shFY,lnu,lAr,lbnTx,lbnTy)
-  !$OMP DO SCHEDULE(dynamic,100)
+  !!$OMP PARALLEL DEFAULT(shared) &
+  !!$OMP   PRIVATE(l,k,k2,j,iel,na,lJacb,lIntW,lBndIntP,&
+  !!$OMP     lU,lV,lH,pnx,pny,lUDx,lUDy,lVDx,lVDy,&
+  !!$OMP     shFX,shFY,lnu,lAr,lbnTx,lbnTy,lbnObc,lBndTyp)
+  !!$OMP DO SCHEDULE(dynamic,100)
 
   do l=1,nbnd
     iel=mabnd(l,3)
@@ -514,6 +518,7 @@ implicit none
     lAr=eleArea(iel)    
     lIntW=bndIntW*bndLen(l)
     lBndIntP=bndIntP(mabnd(l,6),:)
+    lBndTyp=mabnd(l,4)
 
     lU=ut1(na)
     lV=vt1(na)
@@ -525,6 +530,7 @@ implicit none
 
     lbnTx=0d0
     lbnTy=0d0
+    lbnObc=0d0
     do k2=1,3
       k=lBndIntP(k2)
       shFX=shFE(:,k)*lJacb%D11(k)+shFN(:,k)*lJacb%D12(k)
@@ -551,17 +557,26 @@ implicit none
       ! lbnTy=lbnTy &
       !   +(lIntW(k2)*shF(:,k)*lH(k)*lnu*(lUDy+lVDx)*pnx(k)) &
       !   +(lIntW(k2)*shF(:,k)*lH(k)*2d0*lnu*lVDy*pny(k))     
+
+      if( (lBndTyp.eq.12) .or. (lBndTyp.eq.13) )then
+        lbnObc = 0d0
+      else
+        j=na(k)
+        lbnObc=lbnObc &
+          +( lIntW(k2)*shF(:,k)*( jxTil(j)*pnx + jyTil(j)*pny ) )      
+      endif
       
     enddo 
 
-    !$OMP CRITICAL
+    !!$OMP CRITICAL
     bnTx(na)=bnTx(na)+lbnTx
     bnTy(na)=bnTy(na)+lbnTy
-    !$OMP END CRITICAL
+    bnObc(na) = bnObc(na) - lbnObc
+    !!$OMP END CRITICAL
 
   enddo
-  !$OMP END DO NOWAIT
-  !$OMP END PARALLEL
+  !!$OMP END DO NOWAIT
+  !!$OMP END PARALLEL  
 
   ! iel=7989
   ! write(111,*)
@@ -575,3 +590,39 @@ implicit none
   ! enddo
 
 end subroutine bndInt
+!!---------------------------End bndInt----------------------------!!
+
+
+
+!!---------------------------obcCalcJxTil--------------------------!!
+subroutine obcCalcJxTil(npt, dep, jx, jy, eta, pObj, jxTil, jyTil)
+use basicVars
+use meshFreeMod
+implicit none
+
+  integer(kind=C_K1),intent(in)::npt
+  real(kind=C_K2),intent(in)::dep(npt), jx(npt), jy(npt), eta(npt)
+  type(mfPoiTyp),intent(in)::pObj(npt)    
+  real(kind=C_K2),intent(out)::jxTil(npt), jyTil(npt)
+
+  integer(kind=C_K1)::i, j, k, neid
+  real(kind=C_K2)::etaDx, etaDy
+
+  jxTil = 0d0
+  jyTil = 0d0
+
+  do k = 1, npt    
+    etaDx = 0d0
+    etaDy = 0d0
+    do j = 1, pObj(k)%nn
+      neid = pObj(k)%neid(j)
+      etaDx = etaDx + pObj(k)%phiDx(j)*eta(neid)
+      etaDy = etaDy + pObj(k)%phiDy(j)*eta(neid)      
+    enddo
+    jxTil(k) = jx(k) - grav*dep(k)*etaDx
+    jyTil(k) = jy(k) - grav*dep(k)*etaDy    
+  enddo
+
+
+end subroutine obcCalcJxTil
+!!-------------------------End obcCalcJxTil------------------------!!
