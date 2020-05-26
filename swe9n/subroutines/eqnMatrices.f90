@@ -505,11 +505,11 @@ implicit none
   bndIntP(4,:)=(/  4,  8,  1 /)
 
 
-  !!$OMP PARALLEL DEFAULT(shared) &
-  !!$OMP   PRIVATE(l,k,k2,j,iel,na,lJacb,lIntW,lBndIntP,&
-  !!$OMP     lU,lV,lH,pnx,pny,lUDx,lUDy,lVDx,lVDy,&
-  !!$OMP     shFX,shFY,lnu,lAr,lbnTx,lbnTy,lbnObc,lBndTyp)
-  !!$OMP DO SCHEDULE(dynamic,100)
+  !$OMP PARALLEL DEFAULT(shared) &
+  !$OMP   PRIVATE(l,k,k2,j,iel,na,lJacb,lIntW,lBndIntP,&
+  !$OMP     lU,lV,lH,pnx,pny,lUDx,lUDy,lVDx,lVDy,&
+  !$OMP     shFX,shFY,lnu,lAr,lbnTx,lbnTy,lbnObc,lBndTyp)
+  !$OMP DO SCHEDULE(dynamic,100)
 
   do l=1,nbnd
     iel=mabnd(l,3)
@@ -563,20 +563,20 @@ implicit none
       else
         j=na(k)
         lbnObc=lbnObc &
-          +( lIntW(k2)*shF(:,k)*( jxTil(j)*pnx + jyTil(j)*pny ) )      
+          +( lIntW(k2)*shF(:,k)*( jxTil(j)*pnx + jyTil(j)*pny ) )                
       endif
       
     enddo 
 
-    !!$OMP CRITICAL
+    !$OMP CRITICAL
     bnTx(na)=bnTx(na)+lbnTx
     bnTy(na)=bnTy(na)+lbnTy
     bnObc(na) = bnObc(na) - lbnObc
-    !!$OMP END CRITICAL
+    !$OMP END CRITICAL
 
   enddo
-  !!$OMP END DO NOWAIT
-  !!$OMP END PARALLEL  
+  !$OMP END DO NOWAIT
+  !$OMP END PARALLEL  
 
   ! iel=7989
   ! write(111,*)

@@ -486,3 +486,68 @@ implicit none
 
 end subroutine openBC
 !!---------------------------End openBC----------------------------!!
+
+
+
+!!-----------------------------openBC2-----------------------------!!
+subroutine openBC2(npt, nbndpoi, bnd14p, dt, dep, bndpNm, &
+  pObj, etat1, eta, p, q)
+use meshFreeMod
+use airyWaveModule
+implicit none
+
+  integer(kind=C_K1),intent(in)::npt, nbndpoi
+  integer(kind=C_K1),intent(in)::bnd14p(0:nbndpoi)
+  real(kind=C_K2),intent(in)::bndpNm(npt,2), dep(npt), dt
+  real(kind=C_K2),intent(in)::etat1(npt)
+  type(mfPoiTyp),intent(in)::pObj(npt)
+  real(kind=C_K2),intent(inout)::eta(npt), p(npt), q(npt)
+
+  integer(kind=C_K1)::i, j, k, neid
+  real(kind=C_K2)::wvEta, nx, ny, c, etaDx, etaDy, etaEst, dr, pn  
+  real(kind=C_K2)::tmpr3, tmpr4
+
+  ! integer(kind=C_K1)::test(3,2),i2,j2
+  ! test(1,:)=(/ 2254, 6507 /)
+  ! test(2,:)=(/ 2255, 6509 /)
+  ! test(3,:)=(/ 6508, 8513 /)
+
+  do i = 1, bnd14p(0)
+    k = bnd14p(i)
+    nx = bndpNm(k,1)
+    ny = bndpNm(k,2)    
+    c = dsqrt(grav*dep(k)) 
+
+    etaDx = 0d0
+    etaDy = 0d0
+    do j = 1, pObj(k)%nn
+      neid = pObj(k)%neid(j)
+      etaDx = etaDx + pObj(k)%phiDx(j)*etat1(neid)
+      etaDy = etaDy + pObj(k)%phiDy(j)*etat1(neid)
+    enddo
+    dr = c*dt
+    etaEst = etat1(k) - etaDx*(dr*nx) - etaDy*(dr*ny)
+    pn = c*etaEst    
+
+    ! if(i.eq.9)then
+    !   write(8,'(4F15.6)')rTime, pObj(k)%rad/1000d0, eta(k), etaEst
+    ! endif
+
+    eta(k) = etaEst
+    tmpr3 = p(k)*ny*ny - q(k)*nx*ny + pn*nx
+    tmpr4 = -p(k)*nx*ny + q(k)*nx*nx + pn*ny    
+    p(k) = tmpr3
+    q(k) = tmpr4
+
+    ! do i2=1,3
+    !   if(test(i2,1).eq.k)then
+    !     write(8,'(2I10,2F20.10)')k,test(i2,1),eta(test(i2,2)),etaEst
+    !   endif
+    ! enddo    
+
+  enddo    
+  ! write(8,*)
+  ! write(8,*)
+
+end subroutine openBC2
+!!---------------------------End openBC2---------------------------!!

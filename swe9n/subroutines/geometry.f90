@@ -267,7 +267,7 @@ implicit none
       tmpia(j2,2) = bndPref( min(pref1, pref2) )      
 
       if(tmpia(j2,2).eq.0)then
-        write(tf,*)"[ERR] Bnd type 0 at node",j2
+        write(tf,*)"[ERR] Bnd type 0 at node",na(j)
         write(tf,*)"[ERR] ",l,tmpia(j2,2)
         stop
       endif

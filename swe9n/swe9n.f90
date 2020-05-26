@@ -839,8 +839,8 @@ implicit none
     !! Forcing Inlet and Open BC
     call inletBC(npt, nbndpoi, bnd11p, rTime, dep, bndpNm, &
       pObj, wvIn, eta, p, q)    
-    call openBC(npt, nbndpoi, bnd14p, rTime, dep, bndpNm, &
-      pObj, eta, p, q)    
+    call openBC2(npt, nbndpoi, bnd14p, dt, dep, bndpNm, &
+      pObj, etat1, eta, p, q)    
     
     !! Corrector Steps
     etat0sq=eta*eta
@@ -917,8 +917,8 @@ implicit none
     !! Forcing Inlet and Open BC
     call inletBC(npt, nbndpoi, bnd11p, rTime, dep, bndpNm, &
       pObj, wvIn, eta, p, q)
-    call openBC(npt, nbndpoi, bnd14p, rTime, dep, bndpNm, &
-      pObj, eta, p, q)
+    call openBC2(npt, nbndpoi, bnd14p, dt, dep, bndpNm, &
+      pObj, etat1, eta, p, q)
 
         
     !! Output
