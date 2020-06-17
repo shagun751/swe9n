@@ -1,9 +1,4 @@
-SWITCH_ICC_RELEASE=-ipo -O3 -vec_report1
-SWITCH_ICC_CUSTOM=-O3
-SWITCH_ICC_DEBUG= -g -debug all -check all -implicitnone -fp-stack-check -heap-arrays -ftrapuv -check pointers -check bounds -traceback
-SWITCH_GFORTRAN_RELEASE=-Ofast
-SWITCH_GFORTRAN_O2=-O2
-SWITCH_GFORTRAN_DEBUG=-O0 -g -fbounds-check -fbacktrace
+
 
 #COMPILER=ifort
 #COMPILER=gfortran
@@ -23,7 +18,8 @@ else ifeq ($(COMPILER),pgfortran)
 	MODPATH=-module subroutines
 	C_COMP=pgfortran
 	#PARA_FLAGS=-O3 -lstdc++ -fopenmp -L/usr/local/cuda/lib64	
-	PARA_FLAGS=-fast -Minfo=accel
+	GPU_FLAG = -ta=tesla:cc60,managed
+	PARA_FLAGS=-fast -Minfo=accel $(GPU_FLAG)
 endif
 
 MAIN=swe9n
@@ -44,4 +40,7 @@ cleanAll:
 clean:
 	rm -rf Output
 	mkdir Output
+
+run:
+	PGI_ACC_TIME=1 ./swe sqB
 	

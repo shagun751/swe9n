@@ -9,10 +9,10 @@ set grid ytics lt 0 lw 1
 set grid xtics lt 0 lw 1
 show grid
 set palette model HSV
-do for [ii=1:2] {
-	fileN3=sprintf("WaveProbe_v5.34.tnF.tB.w2.dat")
-	fileN2=sprintf("WaveProbe_v5.34e.tnF.tB.dat")
-	fileN1=sprintf("WaveProbe_tnF.dat")
+do for [ii=1:4] {
+	fileN3=sprintf("../Output_pgi_serial/Output/WaveProbe_sqB.dat")
+	fileN2=sprintf("../Output_gf_omp_4c/Output/WaveProbe_sqB.dat")
+	fileN1=sprintf("WaveProbe_sqB.dat")
 	fileN=sprintf("WEta%d.png",ii)	
 	
 	set output fileN

@@ -690,6 +690,7 @@ implicit none
   write(ifl(5),'(5A12)')'Time(s)','Probei','ProbeiEta',&
     'ProbeiP','ProbeiQ'
 
+  !$acc enter data copyin(gE23)
   do itime=1,ntime
     call system_clock(sysClk(2))
     rTime=rTime+dt
@@ -943,6 +944,7 @@ implicit none
     write(tf,*)
 
   enddo
+  !$acc exit data delete(gE23)
 
   call system_clock(sysClk(3))  
   write(tf,'(" [SPD] ",A15,F15.6)')"Total Duration :",&
