@@ -239,7 +239,7 @@ implicit none
 
   dir1=atan2((windLat(2)-windLat(3)),(windLon(2)-windLon(3)))
   dir2=atan2((windLat(1)-windLat(2)),(windLon(1)-windLon(2)))
-  dirStorm=atan((sin(dir1)+sin(dir2)),(cos(dir1)+cos(dir2)))
+  dirStorm=atan2((sin(dir1)+sin(dir2)),(cos(dir1)+cos(dir2)))
   dirStorm=dirStorm/deg2rad
   dirStorm=90d0-dirStorm
   if(dirStorm.lt.0d0) dirStorm=dirStorm+360d0  
@@ -405,7 +405,7 @@ implicit none
 
   dir1=atan2((windLat(2)-windLat(3)),(windLon(2)-windLon(3)))
   dir2=atan2((windLat(1)-windLat(2)),(windLon(1)-windLon(2)))
-  dirStorm=atan((sin(dir1)+sin(dir2)),(cos(dir1)+cos(dir2)))
+  dirStorm=atan2((sin(dir1)+sin(dir2)),(cos(dir1)+cos(dir2)))
   dirStorm=dirStorm/deg2rad
   dirStorm=90d0-dirStorm
   if(dirStorm.lt.0d0) dirStorm=dirStorm+360d0  
@@ -599,7 +599,7 @@ implicit none
 
   dir1=atan2((windLat(2)-windLat(3)),(windLon(2)-windLon(3)))
   dir2=atan2((windLat(1)-windLat(2)),(windLon(1)-windLon(2)))
-  dirStorm=atan((sin(dir1)+sin(dir2)),(cos(dir1)+cos(dir2)))
+  dirStorm=atan2((sin(dir1)+sin(dir2)),(cos(dir1)+cos(dir2)))
   dirStorm=dirStorm/deg2rad
   dirStorm=90d0-dirStorm
   if(dirStorm.lt.0d0) dirStorm=dirStorm+360d0  

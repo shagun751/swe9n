@@ -53,13 +53,13 @@ implicit none
 
   write(code,'(T7,a)')'<DataArray type="Float64" Name="vel" NumberOfComponents="3" format="ascii">'  
   do i=1,npoinl
-    write(code,'(2F20.6,F4.1)')u(i),v(i),0
+    write(code,'(2F20.6,F4.1)')u(i),v(i),0d0
   enddo
   write(code,'(T7,a)')'</DataArray>'
 
   write(code,'(T7,a)')'<DataArray type="Float64" Name="windSh" NumberOfComponents="3" format="ascii">'  
   do i=1,npoinl
-    write(code,'(2F20.6,F4.1)')windTx(i),windTy(i),0
+    write(code,'(2F20.6,F4.1)')windTx(i),windTy(i),0d0
   enddo
   write(code,'(T7,a)')'</DataArray>'
 
@@ -84,7 +84,7 @@ implicit none
   write(code,'(T5,a)')'<Points>'
   write(code,'(T7,a)')'<DataArray type="Float64" Name="Points" NumberOfComponents="3" format="ascii">'  
   do i=1,npoinl
-    write(code,'(2F20.6,F4.1)')coorx(i),coory(i),0
+    write(code,'(2F20.6,F4.1)')coorx(i),coory(i),0d0
   enddo
   write(code,'(T7,a)')'</DataArray>'
   write(code,'(T5,a)')'</Points>'
