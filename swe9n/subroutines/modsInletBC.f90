@@ -398,7 +398,7 @@ implicit none
 
   integer(kind=C_K1)::i, j, k, neid
   real(kind=C_K2)::wvEta, nx, ny, c, etaDn, pn
-
+  
   do i = 1, bnd11p(0)
     k = bnd11p(i)
     nx = bndpNm(k,1)
@@ -446,7 +446,7 @@ implicit none
   ! test(1,:)=(/ 2254, 6507 /)
   ! test(2,:)=(/ 2255, 6509 /)
   ! test(3,:)=(/ 6508, 8513 /)
-
+  
   do i = 1, bnd14p(0)
     k = bnd14p(i)
     nx = bndpNm(k,1)

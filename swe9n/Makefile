@@ -16,10 +16,10 @@ else ifeq ($(COMPILER),gfortran)
 	PARA_FLAGS=-lstdc++ -fopenmp -L/usr/local/cuda/lib64	
 else ifeq ($(COMPILER),pgfortran)
 	MODPATH=-module subroutines
-	C_COMP=pgfortran
-	#PARA_FLAGS=-O3 -lstdc++ -fopenmp -L/usr/local/cuda/lib64	
-	GPU_FLAG = -ta=tesla:cc60,managed
-	PARA_FLAGS=-fast -Minfo=accel $(GPU_FLAG)
+	C_COMP=pgfortran	
+	CUDA_CHK = #-Mcuda=ptxinfo
+	GPU_FLAG = -ta=tesla:cc60,pinned
+	PARA_FLAGS=-fast -Minfo=accel $(CUDA_CHK) $(GPU_FLAG)
 endif
 
 MAIN=swe9n

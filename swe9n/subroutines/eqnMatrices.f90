@@ -608,10 +608,15 @@ implicit none
   integer(kind=C_K1)::i, j, k, neid
   real(kind=C_K2)::etaDx, etaDy
 
-  jxTil = 0d0
-  jyTil = 0d0
+  ! jxTil = 0d0
+  ! jyTil = 0d0
 
+  !$acc parallel loop default(present) &
+  !$acc   private(k, j, neid, etaDx, etaDy)
   do k = 1, npt    
+
+    jxTil(k) = 0d0
+    jyTil(k) = 0d0
     etaDx = 0d0
     etaDy = 0d0
     do j = 1, pObj(k)%nn

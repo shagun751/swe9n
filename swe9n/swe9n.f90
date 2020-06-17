@@ -690,23 +690,56 @@ implicit none
   write(ifl(5),'(5A12)')'Time(s)','Probei','ProbeiEta',&
     'ProbeiP','ProbeiQ'
 
-  !$acc enter data copyin(gE23)
+  !$acc enter data copyin(dep, eta, etat1, etat2)
+  !$acc enter data copyin(etat1sq, etat0sq, etaImp, etaTWei)
+  !$acc enter data copyin(p, pt1, pt2, q, qt1, qt2)
+  !$acc enter data copyin(ht1, ut1, vt1, uMagt1)
+  !$acc enter data copyin(ht0, ut0, vt0, uMagt0)
+  !$acc enter data create(gR1, gR2, gR3, gR4, gR5, gR6, gR7)
+  !$acc enter data copyin(jxt1, jyt1, jxTilt1, jyTilt1)
+  !$acc enter data copyin(pObj)
+  !$acc enter data copyin(wvIn)
+
+  !$acc enter data copyin(bnd11p, bnd12p, bnd14p, bndpNm)
+  !$acc enter data copyin(gE12, gE41, gE42, gE43, gE81)
+  !$acc enter data copyin(gE22, gE23, gE26, gEBot)    
+  !$acc enter data copyin(gD11, gD13, gD14, gD15, gD16)
+  !$acc enter data copyin(gD24, gD34, gD44, gD54, gD88)
+  !$acc enter data copyin(ivf, jvf)
+  !$acc enter data copyin(gK11, gK21, gK31, gK41, gK51)
+  !$acc enter data copyin(gK61, gK71, gK81)
+
+  !$acc enter data copyin(windTx, windTy, pr) 
+  !$acc enter data copyin(gTxx, gTxy, gTyx, gTyy)
+  !$acc enter data copyin(gD21, gD25, gD35)  
+  !$acc enter data copyin(bnTx, bnTy, bnObc)
   do itime=1,ntime
     call system_clock(sysClk(2))
     rTime=rTime+dt
     write(tf,'(" Time : ",I10," : ",F15.6)')itime,rTime      
 
-    etat2=etat1
-    pt2=pt1
-    qt2=qt1
-    etat1=eta
-    pt1=p
-    qt1=q
-    ht1=etat1+dep
-    ut1=pt1/ht1
-    vt1=qt1/ht1
-    etat1sq=etat1*etat1
-    uMagt1=dsqrt(ut1**2 + vt1**2)
+    !$acc parallel loop default(present) private(i)
+    do i = 1, npt
+      etat2(i)=etat1(i)
+      pt2(i) = pt1(i)
+      qt2(i) = qt1(i)
+      etat1(i) = eta(i)
+      pt1(i) = p(i)
+      qt1(i) = q(i)
+      ht1(i) = etat1(i) + dep(i)
+      ut1(i) = pt1(i) / ht1(i)
+      vt1(i) = qt1(i) / ht1(i)
+      etat1sq(i) = etat1(i) * etat1(i)
+      uMagt1(i) = dsqrt( ut1(i)**2 + vt1(i)**2 )
+
+      gR1(i) = 0d0
+      gR2(i) = 0d0
+      gR3(i) = 0d0
+      gR4(i) = 0d0
+      gR5(i) = 0d0    
+    enddo
+
+    !$acc update self(ht1, ut1, vt1)
 
     !! Cyclone Track
     if(itime.lt.3)then
@@ -745,22 +778,29 @@ implicit none
       coorx,coory,windLon(2:4),windLat(2:4),windR0(2:4),coriF,&
       windWm(2:4),windA,windB,pr,windTx,windTy)    
 
-    gR1=0d0
-    gR2=0d0
-    gR3=0d0
-    gR4=0d0
-    gR5=0d0    
+    ! gR1=0d0
+    ! gR2=0d0
+    ! gR3=0d0
+    ! gR4=0d0
+    ! gR5=0d0    
+
+    !$acc update device(gD21, gD25, gD35)
+    !$acc update device(windTx, windTy, pr)
+    !$acc update device(gTxx, gTxy, gTyx, gTyy)
 
     !! Solving for Jx and Jy
-    !! [Note] : Here the terms are not multiplied by dt
-    gR2=gR2+(gE22*pt1)+(gE23*qt1)+(gE26*windTx)+(gEBot*uMagt1*ut1)&
-      +gTxx+gTxy+0d0*bnTx
-    gR3=gR3+(gE22*qt1)-(gE23*pt1)+(gE26*windTy)+(gEBot*uMagt1*vt1)&
-      +gTyx+gTyy+0d0*bnTy
-    !$OMP PARALLEL DEFAULT(shared) &
-    !$OMP   PRIVATE(i,j,j2,k,k2,lR2,lR3)
-    !$OMP DO SCHEDULE(dynamic,100)
-    do i=1,npt
+    !! [Note] : Here the terms are not multiplied by dt    
+    !$acc parallel loop default(present) &
+    !$acc   private(i, j, j2, k, k2, lR2, lR3)
+    do i = 1, npt
+
+      gR2(i) = gR2(i) + (gE22(i)*pt1(i)) + (gE23(i)*qt1(i)) &
+        + (gE26(i)*windTx(i)) + (gEBot(i)*uMagt1(i)*ut1(i)) &
+        + gTxx(i) + gTxy(i) + 0d0*bnTx(i)
+      gR3(i) = gR3(i) + (gE22(i)*qt1(i)) - (gE23(i)*pt1(i)) &
+        + (gE26(i)*windTy(i)) + (gEBot(i)*uMagt1(i)*vt1(i)) &
+        + gTyx(i) + gTyy(i) + 0d0*bnTy(i)    
+
       k=ivf(i)
       k2=ivf(i+1)-1
       lR2=0d0
@@ -775,16 +815,24 @@ implicit none
       gR2(i)=gR2(i)+lR2
       gR3(i)=gR3(i)+lR3      
     enddo
-    !$OMP END DO NOWAIT
-    !$OMP END PARALLEL
-    jxt1=gR2/gK21
-    jyt1=gR3/gK31
+    
+    !$acc parallel loop default(present) private(i)
+    do i = 1, npt
+      jxt1(i) = gR2(i) / gK21(i)
+      jyt1(i) = gR3(i) / gK31(i)
+    enddo
+    
 
     call obcCalcJxTil(npt, dep, jxt1, jyt1, etat1, pObj, &
       jxTilt1, jyTilt1)
+
+    !$acc update self(jxTilt1, jyTilt1)
+
     call bndInt(npt,nele,nbnd,nnzt,conn,mabnd,jacb,shF,&
       shFE,shFN,shW,eleArea,elejvf9x9,bndLen,bndpNm, &
       ht1, ut1, vt1, jxTilt1, jyTilt1, bnTx, bnTy, bnObc)
+
+    !$acc update device(bnTx, bnTy, bnObc)
     
     ! write(8,'(I10, F20.10)')itime, rTime    
     ! do k = 1, bnd14p(0)
@@ -795,13 +843,16 @@ implicit none
 
     !! Solving for Eta 
     !! Predictor for P and Q
-    gR1=gR1+(gE12*etat2) + (dt*dt*bnObc)
-    gR4=gR4+(gE41*pt1)+(gE42*pt1)+(gE43*jxt1)
-    gR5=gR5+(gE41*qt1)+(gE42*qt1)+(gE43*jyt1)     
-    !$OMP PARALLEL DEFAULT(shared) &
-    !$OMP   PRIVATE(i,j,j2,k,k2,lR1,lR4,lR5)
-    !$OMP DO SCHEDULE(dynamic,100)
+    !$acc parallel loop default(present) &
+    !$acc   private(i, j, j2, k, k2, lR1, lR4, lR5)
     do i=1,npt
+
+      gR1(i) = gR1(i) + (gE12(i)*etat2(i)) + (dt*dt*bnObc(i))
+      gR4(i) = gR4(i) + (gE41(i)*pt1(i)) + (gE42(i)*pt1(i)) &
+        + (gE43(i)*jxt1(i))
+      gR5(i) = gR5(i) + (gE41(i)*qt1(i)) + (gE42(i)*qt1(i)) &
+        + (gE43(i)*jyt1(i))         
+
       k=ivf(i)
       k2=ivf(i+1)-1
       lR1=0d0
@@ -819,13 +870,17 @@ implicit none
       gR4(i)=gR4(i)+lR4
       gR5(i)=gR5(i)+lR5      
     enddo
-    !$OMP END DO NOWAIT
-    !$OMP END PARALLEL
-    eta=gR1/gK11
-    p=gR4/gK41
-    q=gR5/gK51    
+
+    !$acc parallel loop default(present) private(i)
+    do i = 1, npt
+      eta(i) = gR1(i) / gK11(i)
+      p(i) = gR4(i) / gK41(i)
+      q(i) = gR5(i) / gK51(i)
+    enddo
 
     !! Forcing wall BC    
+    !$acc parallel loop default(present) &
+    !$acc   private(i, k, tmpr1, tmpr2, tmpr3, tmpr4)
     do i=1,bnd12p(0)
       !if(wetpoi(i).eq.0)cycle
       k=bnd12p(i)
@@ -837,22 +892,32 @@ implicit none
       q(k)=tmpr4      
     enddo    
 
+    !$acc update self(eta, etat1, p, q)
+
     !! Forcing Inlet and Open BC
     call inletBC(npt, nbndpoi, bnd11p, rTime, dep, bndpNm, &
       pObj, wvIn, eta, p, q)    
     call openBC2(npt, nbndpoi, bnd14p, dt, dep, bndpNm, &
       pObj, etat1, eta, p, q)    
-    
+
+    !$acc update device(eta, etat1, p, q)
+
     !! Corrector Steps
-    etat0sq=eta*eta
-    ht0=dep+eta
-    ut0=p/ht0
-    vt0=q/ht0
-    uMagt0=dsqrt(ut0**2 + vt0**2)
-    etaImp=etaTWei(1)*eta + etaTWei(2)*etat1 + etaTWei(3)*etat2
-    gR1=0d0
-    gR6=0d0
-    gR7=0d0    
+    !$acc parallel loop default(present) private(i)
+    do i = 1, npt
+      etat0sq(i) = eta(i)*eta(i)
+      ht0(i) = dep(i) + eta(i)
+      ut0(i) = p(i) / ht0(i)
+      vt0(i) = q(i) / ht0(i)
+      uMagt0(i) = dsqrt( ut0(i)**2 + vt0(i)**2)
+      etaImp(i) = etaTWei(1)*eta(i) + etaTWei(2)*etat1(i) &
+        + etaTWei(3)*etat2(i)
+      gR1(i) = 0d0
+      gR6(i) = 0d0
+      gR7(i) = 0d0    
+    enddo
+
+    !$acc update self(ht0, ut0, vt0)
 
     call GWCErh2(npt,nele,nnzt,conn,jacb,shF,shFE,shFN,&
       shW,eleArea,elejvf9x9,ht0,ut0,vt0,gD21,gD25,gD35,&
@@ -866,18 +931,27 @@ implicit none
       coorx,coory,windLon(1:3),windLat(1:3),windR0(1:3),coriF,&
       windWm(1:3),windA,windB,pr,windTx,windTy)     
 
+    !$acc update device(bnTx, bnTy, bnObc)
+    !$acc update device(gD21, gD25, gD35)
+    !$acc update device(windTx, windTy, pr)
+    !$acc update device(gTxx, gTxy, gTyx, gTyy)
+
     !! Corrector for P and Q  
     !! [Note] : Do not forget to multiply by dt here 
-    !!          when taking terms from Jx Jy eqn
-    gR1=gR1+(gE81*etat1)+(gE12*etat2) + (dt*dt*bnObc)
-    gR6=gR6+(gE41*pt1)+(dt*gE23*q)+(dt*gE26*windTx)&
-      +(dt*gEBot*uMagt0*ut0)+dt*(gTxx+gTxy+0d0*bnTx)
-    gR7=gR7+(gE41*qt1)-(dt*gE23*p)+(dt*gE26*windTy)&
-      +(dt*gEBot*uMagt0*vt0)+dt*(gTyx+gTyy+0d0*bnTy)
-    !$OMP PARALLEL DEFAULT(shared) &
-    !$OMP   PRIVATE(i,j,j2,k,k2,lR1,lR6,lR7)
-    !$OMP DO SCHEDULE(dynamic,100)
+    !!          when taking terms from Jx Jy eqn        
+    !$acc parallel loop default(present) &
+    !$acc   private(i, j, j2, k, k2, lR1, lR6, lR7)
     do i=1,npt
+
+      gR1(i) = gR1(i) + (gE81(i)*etat1(i)) + (gE12(i)*etat2(i)) &
+        + (dt*dt*bnObc(i))
+      gR6(i) = gR6(i) + (gE41(i)*pt1(i)) + (dt*gE23(i)*q(i)) &
+       + (dt*gE26(i)*windTx(i)) + (dt*gEBot(i)*uMagt0(i)*ut0(i)) &
+       + dt*( gTxx(i) + gTxy(i) + 0d0*bnTx(i) )
+      gR7(i) = gR7(i) + (gE41(i)*qt1(i)) - (dt*gE23(i)*p(i)) &
+        + (dt*gE26(i)*windTy(i)) + (dt*gEBot(i)*uMagt0(i)*vt0(i)) &
+        + dt*( gTyx(i) + gTyy(i) + 0d0*bnTy(i) )
+
       k=ivf(i)
       k2=ivf(i+1)-1      
       lR1=0d0
@@ -896,14 +970,18 @@ implicit none
       gR1(i)=gR1(i)+lR1        
       gR6(i)=gR6(i)+lR6
       gR7(i)=gR7(i)+lR7      
+    enddo    
+
+    !$acc parallel loop default(present) private(i)
+    do i = 1, npt
+      eta(i) = gR1(i)/gK81(i)
+      p(i) = 0.5d0*( p(i) + gR6(i)/gK61(i) )
+      q(i) = 0.5d0*( q(i) + gR7(i)/gK71(i) )    
     enddo
-    !$OMP END DO NOWAIT
-    !$OMP END PARALLEL 
-    eta=gR1/gK81
-    p=0.5d0*(p+gR6/gK61)
-    q=0.5d0*(q+gR7/gK71)    
 
     !! Forcing wall BC    
+    !$acc parallel loop default(present) &
+    !$acc   private(i, k, tmpr1, tmpr2, tmpr3, tmpr4)
     do i=1,bnd12p(0)
       !if(wetpoi(i).eq.0)cycle
       k=bnd12p(i)
@@ -915,15 +993,17 @@ implicit none
       q(k)=tmpr4      
     enddo    
 
+    !$acc update self(eta, etat1, p, q)
+
     !! Forcing Inlet and Open BC
     call inletBC(npt, nbndpoi, bnd11p, rTime, dep, bndpNm, &
       pObj, wvIn, eta, p, q)
     call openBC2(npt, nbndpoi, bnd14p, dt, dep, bndpNm, &
-      pObj, etat1, eta, p, q)
+      pObj, etat1, eta, p, q)    
 
         
     !! Output
-    if(mod(itime,fileOut).eq.0) then            
+    if(mod(itime,fileOut).eq.0) then                      
       call out4NXML(probname,npl,npt,nele,ifl(3),itime,&
         conn,lon,lat,p,q,eta,dep,wetpoi,pr,windTx,windTy,pObj)
     endif
@@ -936,6 +1016,8 @@ implicit none
     enddo
     write(ifl(5),*)
 
+    !$acc update device(eta, etat1, p, q)
+
     call system_clock(sysClk(5))
     tmpr1=(sysClk(5)-sysClk(2))/sysRate
     tmpr2=(sysClk(7)-sysClk(6))/sysRate
@@ -944,7 +1026,29 @@ implicit none
     write(tf,*)
 
   enddo
-  !$acc exit data delete(gE23)
+  !$acc exit data delete(dep, eta, etat1, etat2)
+  !$acc exit data delete(etat1sq, etat0sq, etaImp, etaTWei)
+  !$acc exit data delete(p, pt1, pt2, q, qt1, qt2)
+  !$acc exit data delete(ht1, ut1, vt1, uMagt1)
+  !$acc exit data delete(ht0, ut0, vt0, uMagt0)
+  !$acc exit data delete(gR1, gR2, gR3, gR4, gR5, gR6, gR7)
+  !$acc exit data delete(jxt1, jyt1, jxTilt1, jyTilt1)
+  !$acc exit data delete(pObj)
+  !$acc exit data delete(wvIn)
+
+  !$acc exit data delete(bnd11p, bnd12p, bnd14p, bndpNm)
+  !$acc exit data delete(gE12, gE41, gE42, gE43, gE81)
+  !$acc exit data delete(gE22, gE23, gE26, gEBot)
+  !$acc exit data delete(gD11, gD13, gD14, gD15, gD16)
+  !$acc exit data delete(gD24, gD34, gD44, gD54, gD88)
+  !$acc exit data delete(ivf, jvf)
+  !$acc exit data delete(gK11, gK21, gK31, gK41, gK51)
+  !$acc exit data delete(gK61, gK71, gK81)
+
+  !$acc exit data delete(windTx, windTy, pr) 
+  !$acc exit data delete(gTxx, gTxy, gTyx, gTyy)
+  !$acc exit data delete(gD21, gD25, gD35)  
+  !$acc exit data delete(bnTx, bnTy, bnObc)
 
   call system_clock(sysClk(3))  
   write(tf,'(" [SPD] ",A15,F15.6)')"Total Duration :",&
