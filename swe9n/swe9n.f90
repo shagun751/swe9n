@@ -690,6 +690,9 @@ implicit none
   write(ifl(5),'(5A12)')'Time(s)','Probei','ProbeiEta',&
     'ProbeiP','ProbeiQ'
 
+  !$acc enter data copyin(conn, jacb, shF, shFE, shFN, shW)
+  !$acc enter data copyin(eleArea, elejvf9x9)
+
   !$acc enter data copyin(dep, eta, etat1, etat2)
   !$acc enter data copyin(etat1sq, etat0sq, etaImp, etaTWei)
   !$acc enter data copyin(p, pt1, pt2, q, qt1, qt2)
@@ -718,7 +721,7 @@ implicit none
     rTime=rTime+dt
     write(tf,'(" Time : ",I10," : ",F15.6)')itime,rTime      
 
-    !$acc parallel loop default(present) private(i)
+    !$acc parallel loop gang vector default(present) private(i)
     do i = 1, npt
       etat2(i)=etat1(i)
       pt2(i) = pt1(i)
@@ -771,6 +774,9 @@ implicit none
     call GWCErh2(npt,nele,nnzt,conn,jacb,shF,shFE,shFN,&
       shW,eleArea,elejvf9x9,ht1,ut1,vt1,gD21,gD25,gD35,&
       gTxx,gTxy,gTyx,gTyy)                
+    ! call GWCErh2ACC(npt,nele,nnzt,conn,jacb,shF,shFE,shFN,&
+    !   shW,eleArea,elejvf9x9,ht1,ut1,vt1,gD21,gD25,gD35,&
+    !   gTxx,gTxy,gTyx,gTyy)                
     call system_clock(sysClk(7))
 
     !! Cyclone wind            
@@ -790,7 +796,7 @@ implicit none
 
     !! Solving for Jx and Jy
     !! [Note] : Here the terms are not multiplied by dt    
-    !$acc parallel loop default(present) &
+    !$acc parallel loop gang vector default(present) &
     !$acc   private(i, j, j2, k, k2, lR2, lR3)
     do i = 1, npt
 
@@ -827,6 +833,7 @@ implicit none
       jxTilt1, jyTilt1)
 
     !$acc update self(jxTilt1, jyTilt1)
+    !!$acc update self(ht1, ut1, vt1)
 
     call bndInt(npt,nele,nbnd,nnzt,conn,mabnd,jacb,shF,&
       shFE,shFN,shW,eleArea,elejvf9x9,bndLen,bndpNm, &
@@ -843,7 +850,7 @@ implicit none
 
     !! Solving for Eta 
     !! Predictor for P and Q
-    !$acc parallel loop default(present) &
+    !$acc parallel loop gang vector default(present) &
     !$acc   private(i, j, j2, k, k2, lR1, lR4, lR5)
     do i=1,npt
 
@@ -903,7 +910,7 @@ implicit none
     !$acc update device(eta, etat1, p, q)
 
     !! Corrector Steps
-    !$acc parallel loop default(present) private(i)
+    !$acc parallel loop gang vector default(present) private(i)
     do i = 1, npt
       etat0sq(i) = eta(i)*eta(i)
       ht0(i) = dep(i) + eta(i)
@@ -922,6 +929,11 @@ implicit none
     call GWCErh2(npt,nele,nnzt,conn,jacb,shF,shFE,shFN,&
       shW,eleArea,elejvf9x9,ht0,ut0,vt0,gD21,gD25,gD35,&
       gTxx,gTxy,gTyx,gTyy)     
+    ! call GWCErh2ACC(npt,nele,nnzt,conn,jacb,shF,shFE,shFN,&
+    !   shW,eleArea,elejvf9x9,ht0,ut0,vt0,gD21,gD25,gD35,&
+    !   gTxx,gTxy,gTyx,gTyy)     
+
+    !!$acc update self(ht0, ut0, vt0)
     call bndInt(npt,nele,nbnd,nnzt,conn,mabnd,jacb,shF,&
       shFE,shFN,shW,eleArea,elejvf9x9,bndLen,bndpNm, &
       ht0, ut0, vt0, jxTilt1, jyTilt1, bnTx, bnTy, bnObc)    
@@ -939,7 +951,7 @@ implicit none
     !! Corrector for P and Q  
     !! [Note] : Do not forget to multiply by dt here 
     !!          when taking terms from Jx Jy eqn        
-    !$acc parallel loop default(present) &
+    !$acc parallel loop gang vector default(present) &
     !$acc   private(i, j, j2, k, k2, lR1, lR6, lR7)
     do i=1,npt
 
@@ -1026,6 +1038,10 @@ implicit none
     write(tf,*)
 
   enddo
+
+  !$acc exit data delete(conn, jacb, shF, shFE, shFN, shW)
+  !$acc exit data delete(eleArea, elejvf9x9)
+
   !$acc exit data delete(dep, eta, etat1, etat2)
   !$acc exit data delete(etat1sq, etat0sq, etaImp, etaTWei)
   !$acc exit data delete(p, pt1, pt2, q, qt1, qt2)

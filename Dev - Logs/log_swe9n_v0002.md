@@ -1,7 +1,8 @@
 ## Initial development log
 
 1. [Comparison of speeds [2020-06-17]](#log_swe9n_v0002_1)
-1. [OpenACC for Time-Loop Attempt 1 [2020-06-17]](#log_swe9n_v0002_2)
+1. [OpenACC for Time-Loop Attempt 1 [2020-06-17][2020-06-18]](#log_swe9n_v0002_2)
+1. [OpenACC for GWCErh2() [2020-06-18]](#log_swe9n_v0002_3)
 
 ### Attempting
 - OpenACC directives based GPU parallelisation
@@ -12,6 +13,18 @@
 
 -----------------------------------------------
 
+
+<a name = 'log_swe9n_v0002_3' ></a>
+
+### OpenACC for GWCErh2() [2020-06-17]
+- It appears that update directives on line 787 and 935 (for output from _GWCErh2()_) take quite a long time. The other data updates are quite small.
+- So the aim is to make _GWCErh2()_ GPU parallel.
+	- This will minimise the run time for this, the slowest function
+	- It will also remove the 'update' time for transfer from CPU to GPU being done twice every loop and is the slowest data update.
+- Will have to use **atomic** to ensure that the matrices are updated correcttly.
+	- Similar to CRITICAL in OpenMP
+
+-----------------------------------------------
 
 <a name = 'log_swe9n_v0002_2' ></a>
 
@@ -27,6 +40,13 @@
 - **So the next aim is to make _GWCErh2()_ GPU parallel**.
 	- This will minimise the run time for this, the slowest function
 	- It will also remove the 'update' time for transfer from CPU to GPU being done twice every loop and is the slowest data update.
+
+#### Update [2020-06-18]
+- Significant gains were made just by using `gang vector` clause in `!$acc parallel loop` inside _swe9n.f90_ and one function inside _eqnMatrices.f90_
+- Wall run time changed from **TestCase1 wallTime = 83.67s** to **TestCase1 wallTime = 59.67s**, a gain of 24s!
+- Now the CPU run _GWCErh2()_ takes up 56% of the execution time, approx 33s.
+- Also the data transfer due to CPU functioning of _GWCErh2()_ takes 3s.
+- A large portion of this 36s can be cut down by making _GWCErh2()_ run on GPU.
 
 -----------------------------------------------
 

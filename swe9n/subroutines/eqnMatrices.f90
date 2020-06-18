@@ -61,8 +61,7 @@ implicit none
 
 end subroutine calcMat
 
-
-
+!!----------------------------calcMatT2----------------------------!!
 subroutine calcMatT2(shW,D,sc,Ai,Aj,lN)
 use basicVars
 implicit none
@@ -88,6 +87,39 @@ implicit none
   enddo
 
 end subroutine calcMatT2
+!!----------------------------calcMatT2----------------------------!!
+
+
+
+!!--------------------------calcMatT2ACC---------------------------!!
+subroutine calcMatT2ACC(shW,D,sc,Ai,Aj,lN)
+!!$acc routine seq  
+use basicVars
+implicit none
+  
+  real(kind=C_K2),intent(in)::shW(9),D(9),sc(9)
+  real(kind=C_K2),intent(in)::Ai(9,9),Aj(9,9)
+  real(kind=C_K2),intent(out)::lN(81)
+
+  integer(kind=C_K1)::i, i2, j, l2
+  real(kind=C_K2)::tmpr1, tmpr2
+
+  lN=0d0
+
+  do i2=1,9 !Looping over integration pts
+    tmpr1=shW(i2)*D(i2)*sc(i2)
+    do i=1,9
+      do j=1,9
+        l2=(i-1)*9+j
+        tmpr2=tmpr1*Ai(i,i2)*Aj(j,i2)
+        lN(l2)=lN(l2)+tmpr2
+      enddo
+    enddo
+  enddo
+
+end subroutine calcMatT2ACC
+!!--------------------------calcMatT2ACC---------------------------!!
+
 
 
 subroutine rh1(npt,nele,nnzt,conn,ivf,jvf,jacb,shF,shFE,shFN,&
@@ -349,6 +381,9 @@ implicit none
 
 end subroutine GWCErh1
 
+
+
+!!-----------------------------GWCErh2-----------------------------!!
 subroutine GWCErh2(npt,nele,nnzt,conn,jacb,shF,shFE,&
   shFN,shW,eleArea,elejvf9x9,ht1,ut1,vt1,gD21,gD25,gD35,&
   gTxx,gTxy,gTyx,gTyy)
@@ -461,6 +496,136 @@ implicit none
   !$OMP END PARALLEL
 
 end subroutine GWCErh2
+!!---------------------------End GWCErh2---------------------------!!
+
+
+
+!!---------------------------GWCErh2ACC----------------------------!!
+subroutine GWCErh2ACC(npt,nele,nnzt,conn,jacb,shF,shFE,&
+  shFN,shW,eleArea,elejvf9x9,ht1,ut1,vt1,gD21,gD25,gD35,&
+  gTxx,gTxy,gTyx,gTyy)
+use basicVars
+use jacobianModule
+implicit none
+  
+  integer(kind=C_K1),intent(in)::npt,nele,nnzt,conn(nele,9)
+  integer(kind=C_K1),intent(in)::elejvf9x9(nele,81)
+  integer(kind=C_K1)::locjvf9x9(81)
+  type(jacbType),intent(in)::jacb(nele)
+  type(jacbType)::lJacb
+  real(kind=C_K2),intent(in)::shF(9,9),shFE(9,9),shFN(9,9)
+  real(kind=C_K2),intent(in)::shW(9),eleArea(nele)
+  real(kind=C_K2),intent(in)::ut1(npt),vt1(npt),ht1(npt)
+  real(kind=C_K2),intent(out)::gD21(nnzt)
+  real(kind=C_K2),intent(out)::gD25(nnzt),gD35(nnzt)
+  real(kind=C_K2),intent(out)::gTxx(npt),gTxy(npt)
+  real(kind=C_K2),intent(out)::gTyy(npt),gTyx(npt)
+  real(kind=C_K2)::lN(81),lN21(81),lN22(81)
+  real(kind=C_K2)::lN26(81),lN36(81)
+  real(kind=C_K2)::shFX(9,9),shFY(9,9)
+  real(kind=C_K2)::lU(9),lV(9),lH(9)
+  real(kind=C_K2)::lUDx(9),lVDy(9),lSc(9)
+  real(kind=C_K2)::lUDy,lVDx,lnu,lAr
+  real(kind=C_K2)::lTxx(9),lTxy(9),lTyy(9),lTyx(9)
+
+  integer(kind=C_K1)::iel, k, j, na(9)  
+
+  !$acc parallel loop default(present) private(k)
+  do k = 1, nnzt
+    gD21(k) = 0d0
+    gD25(k) = 0d0
+    gD35(k) = 0d0    
+  enddo
+
+  !$acc parallel loop default(present) private(k)
+  do k = 1, npt    
+    gTxx(k) = 0d0
+    gTxy(k) = 0d0
+    gTyx(k) = 0d0
+    gTyy(k) = 0d0
+  enddo
+
+  
+  !!$OMP   PRIVATE(iel,k,j,na,lJacb,lU,lV,lH,lSc,locjvf9x9,&
+  !!$OMP     lUDx,lVDy,shFX,shFY,lN,lN21,lN22,lN26,lN36,&
+  !!$OMP     lUDy,lVDx,lnu,lAr,lTxx,lTxy,lTyx,lTyy)
+  !$acc parallel loop default(present) gang vector &
+  !$acc   private(iel,k,j,lU,lV,lH,lSc,lAr,na,locjvf9x9,lJacb) &
+  !$acc   private(lUDx,lUDy,lVDx,lVDy) &
+  !$acc   private(lnu,lTxx,lTxy,lTyx,lTyy,shFX,shFY)
+  !!$acc   private(lN,lN21,lN22,lN26,lN36)
+  do iel=1,nele
+    na=conn(iel,:)
+    lJacb=jacb(iel)    
+    lAr=eleArea(iel)
+    lU=ut1(na)
+    lV=vt1(na)
+    lH=ht1(na)
+    locjvf9x9=elejvf9x9(iel,:)
+    
+    lUDx=0d0    
+    lVDy=0d0        
+    lTxx=0d0
+    lTxy=0d0
+    lTyx=0d0
+    lTyy=0d0
+    do k=1,9
+      shFX(:,k) = shFE(:,k)*lJacb%D11(k) + shFN(:,k)*lJacb%D12(k)
+      shFY(:,k) = shFE(:,k)*lJacb%D21(k) + shFN(:,k)*lJacb%D22(k)
+      
+      lUDy=0d0
+      lVDx=0d0
+      do j=1,9
+        lUDx(k)=lUDx(k)+(shFX(j,k)*lU(j))
+        lVDy(k)=lVDy(k)+(shFY(j,k)*lV(j))
+        lUDy=lUDy+(shFY(j,k)*lU(j))
+        lVDx=lVDx+(shFX(j,k)*lV(j))
+      enddo
+
+      ! lnu=smCsSq*lAr &
+      !   *dsqrt(0.5d0*(lUDy+lVDx)**2 + lUDx(k)**2 + lVDy(k)**2)
+      ! lTxx=lTxx+(shW(k)*shFX(:,k)*lH(k)*2d0*lnu*lUDx(k)*lJacb%D(k))
+      ! lTxy=lTxy+(shW(k)*shFY(:,k)*lH(k)*lnu*(lUDy+lVDx)*lJacb%D(k))
+      ! lTyx=lTyx+(shW(k)*shFX(:,k)*lH(k)*lnu*(lUDy+lVDx)*lJacb%D(k))
+      ! lTyy=lTyy+(shW(k)*shFY(:,k)*lH(k)*2d0*lnu*lVDy(k)*lJacb%D(k))
+            
+    enddo    
+
+    ! lN21=0d0
+    ! call calcMatT2ACC(shW,lJacb%D,lU,shF,shFX,lN)    
+    ! lN21=lN21+lN
+    ! call calcMatT2ACC(shW,lJacb%D,lUDx,shF,shF,lN)    
+    ! lN21=lN21+lN
+
+    ! lN22=0d0
+    ! call calcMatT2ACC(shW,lJacb%D,lV,shF,shFY,lN)    
+    ! lN22=lN22+lN
+    ! call calcMatT2ACC(shW,lJacb%D,lVDy,shF,shF,lN)    
+    ! lN22=lN22+lN
+
+    ! lSc=lH/rhoW
+    ! call calcMatT2ACC(shW,lJacb%D,lSc,shF,shFX,lN26)
+    ! call calcMatT2ACC(shW,lJacb%D,lSc,shF,shFY,lN36)
+
+    ! !! 9x9
+    ! do k = 1,81
+    !   j = locjvf9x9(k)
+    !   gD21(j) = gD21(j) - ( lN21(k) + lN22(k) )
+    !   gD25(j) = gD25(j) - ( lN26(k) )
+    !   gD35(j) = gD35(j) - ( lN36(k) )      
+    ! enddo
+    ! do k = 1,9
+    !   j = na(k)      
+    !   gTxx(j) = gTxx(j) - lTxx(k)
+    !   gTxy(j) = gTxy(j) - lTxy(k)
+    !   gTyx(j) = gTyx(j) - lTyx(k)
+    !   gTyy(j) = gTyy(j) - lTyy(k)
+    ! enddo
+
+  enddo
+
+end subroutine GWCErh2ACC
+!!-------------------------End GWCErh2ACC--------------------------!!
 
 
 
@@ -611,8 +776,8 @@ implicit none
   ! jxTil = 0d0
   ! jyTil = 0d0
 
-  !$acc parallel loop default(present) &
-  !$acc   private(k, j, neid, etaDx, etaDy)
+  !$acc parallel loop default(present) gang vector &
+  !$acc   private(k, j, neid, etaDx, etaDy) 
   do k = 1, npt    
 
     jxTil(k) = 0d0

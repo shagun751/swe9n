@@ -17,7 +17,7 @@ else ifeq ($(COMPILER),gfortran)
 else ifeq ($(COMPILER),pgfortran)
 	MODPATH=-module subroutines
 	C_COMP=pgfortran	
-	CUDA_CHK = #-Mcuda=ptxinfo
+	CUDA_CHK = -Mcuda=ptxinfo
 	GPU_FLAG = -ta=tesla:cc60,pinned
 	PARA_FLAGS=-fast -Minfo=accel $(CUDA_CHK) $(GPU_FLAG)
 endif
