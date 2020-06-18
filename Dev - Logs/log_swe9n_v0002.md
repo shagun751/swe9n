@@ -17,13 +17,21 @@
 <a name = 'log_swe9n_v0002_3' ></a>
 
 ### OpenACC for GWCErh2() [2020-06-17]
+
 - It appears that update directives on line 787 and 935 (for output from _GWCErh2()_) take quite a long time. The other data updates are quite small.
 - So the aim is to make _GWCErh2()_ GPU parallel.
 	- This will minimise the run time for this, the slowest function
 	- It will also remove the 'update' time for transfer from CPU to GPU being done twice every loop and is the slowest data update.
 - Will have to use **atomic** to ensure that the matrices are updated correcttly.
 	- Similar to CRITICAL in OpenMP
-
+- **TestCase1 wallTime = 56.5s** improved to **TestCase1 wallTime = 41.16s**.
+- The results match with Serial and OpenMP versions.
+- The speed issue is not because of atomic. I checked.
+- The subroutine _GWCErh2()_ takes 17.8s.
+- If I remove the loops updating gD21, gD25, gD35, then this subroutine takes 3.03s only. So why is this simple loop taking 14.7s?!
+- Similar odd behaviour is seen in _obcCalcJxTil()_.
+	- Here the loop takes 4.56s.
+	- But if I change `etaDx = etaDx + pObj(k)%phiDx(j)*eta(neid)` to `etaDx = etaDx + 0.01` then it takes 0.078s!!
 -----------------------------------------------
 
 <a name = 'log_swe9n_v0002_2' ></a>

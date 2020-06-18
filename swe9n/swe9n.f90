@@ -742,7 +742,7 @@ implicit none
       gR5(i) = 0d0    
     enddo
 
-    !$acc update self(ht1, ut1, vt1)
+    !!$acc update self(ht1, ut1, vt1)
 
     !! Cyclone Track
     if(itime.lt.3)then
@@ -771,12 +771,12 @@ implicit none
     write(tf,'(" [CYC] ",A15,F15.6)')"Max Wind :",windWm(1)
     
     call system_clock(sysClk(6))        
-    call GWCErh2(npt,nele,nnzt,conn,jacb,shF,shFE,shFN,&
-      shW,eleArea,elejvf9x9,ht1,ut1,vt1,gD21,gD25,gD35,&
-      gTxx,gTxy,gTyx,gTyy)                
-    ! call GWCErh2ACC(npt,nele,nnzt,conn,jacb,shF,shFE,shFN,&
+    ! call GWCErh2(npt,nele,nnzt,conn,jacb,shF,shFE,shFN,&
     !   shW,eleArea,elejvf9x9,ht1,ut1,vt1,gD21,gD25,gD35,&
     !   gTxx,gTxy,gTyx,gTyy)                
+    call GWCErh2ACC(npt,nele,nnzt,conn,jacb,shF,shFE,shFN,&
+      shW,eleArea,elejvf9x9,ht1,ut1,vt1,gD21,gD25,gD35,&
+      gTxx,gTxy,gTyx,gTyy)                
     call system_clock(sysClk(7))
 
     !! Cyclone wind            
@@ -790,9 +790,9 @@ implicit none
     ! gR4=0d0
     ! gR5=0d0    
 
-    !$acc update device(gD21, gD25, gD35)
+    !!$acc update device(gD21, gD25, gD35)
     !$acc update device(windTx, windTy, pr)
-    !$acc update device(gTxx, gTxy, gTyx, gTyy)
+    !!$acc update device(gTxx, gTxy, gTyx, gTyy)
 
     !! Solving for Jx and Jy
     !! [Note] : Here the terms are not multiplied by dt    
@@ -833,7 +833,7 @@ implicit none
       jxTilt1, jyTilt1)
 
     !$acc update self(jxTilt1, jyTilt1)
-    !!$acc update self(ht1, ut1, vt1)
+    !$acc update self(ht1, ut1, vt1)
 
     call bndInt(npt,nele,nbnd,nnzt,conn,mabnd,jacb,shF,&
       shFE,shFN,shW,eleArea,elejvf9x9,bndLen,bndpNm, &
@@ -924,16 +924,16 @@ implicit none
       gR7(i) = 0d0    
     enddo
 
-    !$acc update self(ht0, ut0, vt0)
+    !!$acc update self(ht0, ut0, vt0)
 
-    call GWCErh2(npt,nele,nnzt,conn,jacb,shF,shFE,shFN,&
-      shW,eleArea,elejvf9x9,ht0,ut0,vt0,gD21,gD25,gD35,&
-      gTxx,gTxy,gTyx,gTyy)     
-    ! call GWCErh2ACC(npt,nele,nnzt,conn,jacb,shF,shFE,shFN,&
+    ! call GWCErh2(npt,nele,nnzt,conn,jacb,shF,shFE,shFN,&
     !   shW,eleArea,elejvf9x9,ht0,ut0,vt0,gD21,gD25,gD35,&
     !   gTxx,gTxy,gTyx,gTyy)     
+    call GWCErh2ACC(npt,nele,nnzt,conn,jacb,shF,shFE,shFN,&
+      shW,eleArea,elejvf9x9,ht0,ut0,vt0,gD21,gD25,gD35,&
+      gTxx,gTxy,gTyx,gTyy)     
 
-    !!$acc update self(ht0, ut0, vt0)
+    !$acc update self(ht0, ut0, vt0)
     call bndInt(npt,nele,nbnd,nnzt,conn,mabnd,jacb,shF,&
       shFE,shFN,shW,eleArea,elejvf9x9,bndLen,bndpNm, &
       ht0, ut0, vt0, jxTilt1, jyTilt1, bnTx, bnTy, bnObc)    
@@ -944,9 +944,9 @@ implicit none
       windWm(1:3),windA,windB,pr,windTx,windTy)     
 
     !$acc update device(bnTx, bnTy, bnObc)
-    !$acc update device(gD21, gD25, gD35)
+    !!$acc update device(gD21, gD25, gD35)
     !$acc update device(windTx, windTy, pr)
-    !$acc update device(gTxx, gTxy, gTyx, gTyy)
+    !!$acc update device(gTxx, gTxy, gTyx, gTyy)
 
     !! Corrector for P and Q  
     !! [Note] : Do not forget to multiply by dt here 

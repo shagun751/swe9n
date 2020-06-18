@@ -93,7 +93,7 @@ end subroutine calcMatT2
 
 !!--------------------------calcMatT2ACC---------------------------!!
 subroutine calcMatT2ACC(shW,D,sc,Ai,Aj,lN)
-!!$acc routine seq  
+!$acc routine seq  
 use basicVars
 implicit none
   
@@ -504,6 +504,7 @@ end subroutine GWCErh2
 subroutine GWCErh2ACC(npt,nele,nnzt,conn,jacb,shF,shFE,&
   shFN,shW,eleArea,elejvf9x9,ht1,ut1,vt1,gD21,gD25,gD35,&
   gTxx,gTxy,gTyx,gTyy)
+!$acc routine(calcMatT2ACC) seq
 use basicVars
 use jacobianModule
 implicit none
@@ -529,15 +530,16 @@ implicit none
   real(kind=C_K2)::lTxx(9),lTxy(9),lTyy(9),lTyx(9)
 
   integer(kind=C_K1)::iel, k, j, na(9)  
+  integer(kind=C_K1)::i1, j1
 
-  !$acc parallel loop default(present) private(k)
+  !$acc parallel loop gang vector default(present) private(k)
   do k = 1, nnzt
     gD21(k) = 0d0
     gD25(k) = 0d0
     gD35(k) = 0d0    
   enddo
 
-  !$acc parallel loop default(present) private(k)
+  !$acc parallel loop gang vector default(present) private(k)
   do k = 1, npt    
     gTxx(k) = 0d0
     gTxy(k) = 0d0
@@ -549,11 +551,12 @@ implicit none
   !!$OMP   PRIVATE(iel,k,j,na,lJacb,lU,lV,lH,lSc,locjvf9x9,&
   !!$OMP     lUDx,lVDy,shFX,shFY,lN,lN21,lN22,lN26,lN36,&
   !!$OMP     lUDy,lVDx,lnu,lAr,lTxx,lTxy,lTyx,lTyy)
-  !$acc parallel loop default(present) gang vector &
+
+  !$acc parallel loop default(present) gang vector vector_length(32) &
   !$acc   private(iel,k,j,lU,lV,lH,lSc,lAr,na,locjvf9x9,lJacb) &
   !$acc   private(lUDx,lUDy,lVDx,lVDy) &
-  !$acc   private(lnu,lTxx,lTxy,lTyx,lTyy,shFX,shFY)
-  !!$acc   private(lN,lN21,lN22,lN26,lN36)
+  !$acc   private(lnu,lTxx,lTxy,lTyx,lTyy,shFX,shFY) &
+  !$acc   private(lN,lN21,lN22,lN26,lN36, i1, j1)
   do iel=1,nele
     na=conn(iel,:)
     lJacb=jacb(iel)    
@@ -582,45 +585,64 @@ implicit none
         lVDx=lVDx+(shFX(j,k)*lV(j))
       enddo
 
-      ! lnu=smCsSq*lAr &
-      !   *dsqrt(0.5d0*(lUDy+lVDx)**2 + lUDx(k)**2 + lVDy(k)**2)
-      ! lTxx=lTxx+(shW(k)*shFX(:,k)*lH(k)*2d0*lnu*lUDx(k)*lJacb%D(k))
-      ! lTxy=lTxy+(shW(k)*shFY(:,k)*lH(k)*lnu*(lUDy+lVDx)*lJacb%D(k))
-      ! lTyx=lTyx+(shW(k)*shFX(:,k)*lH(k)*lnu*(lUDy+lVDx)*lJacb%D(k))
-      ! lTyy=lTyy+(shW(k)*shFY(:,k)*lH(k)*2d0*lnu*lVDy(k)*lJacb%D(k))
+      lnu=smCsSq*lAr &
+        *dsqrt(0.5d0*(lUDy+lVDx)**2 + lUDx(k)**2 + lVDy(k)**2)
+      lTxx=lTxx+(shW(k)*shFX(:,k)*lH(k)*2d0*lnu*lUDx(k)*lJacb%D(k))
+      lTxy=lTxy+(shW(k)*shFY(:,k)*lH(k)*lnu*(lUDy+lVDx)*lJacb%D(k))
+      lTyx=lTyx+(shW(k)*shFX(:,k)*lH(k)*lnu*(lUDy+lVDx)*lJacb%D(k))
+      lTyy=lTyy+(shW(k)*shFY(:,k)*lH(k)*2d0*lnu*lVDy(k)*lJacb%D(k))
             
     enddo    
 
-    ! lN21=0d0
-    ! call calcMatT2ACC(shW,lJacb%D,lU,shF,shFX,lN)    
-    ! lN21=lN21+lN
-    ! call calcMatT2ACC(shW,lJacb%D,lUDx,shF,shF,lN)    
-    ! lN21=lN21+lN
+    lN21=0d0
+    call calcMatT2ACC(shW,lJacb%D,lU,shF,shFX,lN)    
+    lN21=lN21+lN
+    call calcMatT2ACC(shW,lJacb%D,lUDx,shF,shF,lN)    
+    lN21=lN21+lN
 
-    ! lN22=0d0
-    ! call calcMatT2ACC(shW,lJacb%D,lV,shF,shFY,lN)    
-    ! lN22=lN22+lN
-    ! call calcMatT2ACC(shW,lJacb%D,lVDy,shF,shF,lN)    
-    ! lN22=lN22+lN
+    lN22=0d0
+    call calcMatT2ACC(shW,lJacb%D,lV,shF,shFY,lN)    
+    lN22=lN22+lN
+    call calcMatT2ACC(shW,lJacb%D,lVDy,shF,shF,lN)    
+    lN22=lN22+lN
 
-    ! lSc=lH/rhoW
-    ! call calcMatT2ACC(shW,lJacb%D,lSc,shF,shFX,lN26)
-    ! call calcMatT2ACC(shW,lJacb%D,lSc,shF,shFY,lN36)
+    lSc=lH/rhoW
+    call calcMatT2ACC(shW,lJacb%D,lSc,shF,shFX,lN26)
+    call calcMatT2ACC(shW,lJacb%D,lSc,shF,shFY,lN36)
+    
 
-    ! !! 9x9
+    ! 9x9        
     ! do k = 1,81
     !   j = locjvf9x9(k)
+    !   !$acc atomic update
     !   gD21(j) = gD21(j) - ( lN21(k) + lN22(k) )
+    !   !$acc atomic update
     !   gD25(j) = gD25(j) - ( lN26(k) )
+    !   !$acc atomic update
     !   gD35(j) = gD35(j) - ( lN36(k) )      
-    ! enddo
-    ! do k = 1,9
-    !   j = na(k)      
-    !   gTxx(j) = gTxx(j) - lTxx(k)
-    !   gTxy(j) = gTxy(j) - lTxy(k)
-    !   gTyx(j) = gTyx(j) - lTyx(k)
-    !   gTyy(j) = gTyy(j) - lTyy(k)
-    ! enddo
+    ! enddo      
+    do k = 1,9
+      j = na(k)      
+      !$acc atomic update
+      gTxx(j) = gTxx(j) - lTxx(k)
+      !$acc atomic update
+      gTxy(j) = gTxy(j) - lTxy(k)
+      !$acc atomic update
+      gTyx(j) = gTyx(j) - lTyx(k)
+      !$acc atomic update
+      gTyy(j) = gTyy(j) - lTyy(k)
+
+      do i1 = 1, 9
+        j1 = (k-1)*9 + i1
+        j = locjvf9x9(j1)
+        !$acc atomic update
+        gD21(j) = gD21(j) - ( lN21(j1) + lN22(j1) )
+        !$acc atomic update
+        gD25(j) = gD25(j) - ( lN26(j1) )
+        !$acc atomic update
+        gD35(j) = gD35(j) - ( lN36(j1) )      
+      enddo
+    enddo
 
   enddo
 
@@ -771,26 +793,27 @@ implicit none
   real(kind=C_K2),intent(out)::jxTil(npt), jyTil(npt)
 
   integer(kind=C_K1)::i, j, k, neid
-  real(kind=C_K2)::etaDx, etaDy
+  real(kind=C_K2)::etaDx, etaDy, lDep
 
   ! jxTil = 0d0
   ! jyTil = 0d0
 
   !$acc parallel loop default(present) gang vector &
-  !$acc   private(k, j, neid, etaDx, etaDy) 
+  !$acc   private(k, j, neid, etaDx, etaDy, lDep) 
   do k = 1, npt    
 
-    jxTil(k) = 0d0
-    jyTil(k) = 0d0
-    etaDx = 0d0
-    etaDy = 0d0
+    !jxTil(k) = 0d0
+    !jyTil(k) = 0d0
+    lDep = dep(k)
+    etaDx = 0d0    
+    etaDy = 0d0    
     do j = 1, pObj(k)%nn
       neid = pObj(k)%neid(j)
       etaDx = etaDx + pObj(k)%phiDx(j)*eta(neid)
       etaDy = etaDy + pObj(k)%phiDy(j)*eta(neid)      
     enddo
-    jxTil(k) = jx(k) - grav*dep(k)*etaDx
-    jyTil(k) = jy(k) - grav*dep(k)*etaDy    
+    jxTil(k) = jx(k) - grav*lDep*etaDx
+    jyTil(k) = jy(k) - grav*lDep*etaDy    
   enddo
 
 
