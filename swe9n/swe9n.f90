@@ -796,7 +796,8 @@ implicit none
 
     !! Solving for Jx and Jy
     !! [Note] : Here the terms are not multiplied by dt    
-    !$acc parallel loop gang vector default(present) &
+    !$acc parallel loop gang worker &
+    !$acc   num_workers(4) vector_length(8) default(present) &
     !$acc   private(i, j, j2, k, k2, lR2, lR3)
     do i = 1, npt
 
@@ -811,6 +812,8 @@ implicit none
       k2=ivf(i+1)-1
       lR2=0d0
       lR3=0d0
+
+      !$acc loop vector
       do j=k,k2
         j2=jvf(j)        
         lR2=lR2+(gD21(j)*pt1(j2))+(gD24(j)*etat1sq(j2)) &
@@ -850,7 +853,8 @@ implicit none
 
     !! Solving for Eta 
     !! Predictor for P and Q
-    !$acc parallel loop gang vector default(present) &
+    !$acc parallel loop gang worker &
+    !$acc   num_workers(4) vector_length(8) default(present) &
     !$acc   private(i, j, j2, k, k2, lR1, lR4, lR5)
     do i=1,npt
 
@@ -865,6 +869,8 @@ implicit none
       lR1=0d0
       lR4=0d0
       lR5=0d0
+
+      !$acc loop vector
       do j=k,k2
         j2=jvf(j)        
         lR1=lR1+(gD11(j)*etat1(j2))+(gD13(j)*pt1(j2)) &
@@ -951,7 +957,8 @@ implicit none
     !! Corrector for P and Q  
     !! [Note] : Do not forget to multiply by dt here 
     !!          when taking terms from Jx Jy eqn        
-    !$acc parallel loop gang vector default(present) &
+    !$acc parallel loop gang worker &
+    !$acc   num_workers(8) vector_length(8) default(present) &
     !$acc   private(i, j, j2, k, k2, lR1, lR6, lR7)
     do i=1,npt
 
@@ -969,6 +976,7 @@ implicit none
       lR1=0d0
       lR6=0d0
       lR7=0d0
+      !$acc loop vector
       do j=k,k2
         j2=jvf(j)   
         lR1=lR1+(gD13(j)*pt1(j2)) &

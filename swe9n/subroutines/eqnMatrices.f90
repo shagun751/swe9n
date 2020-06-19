@@ -529,7 +529,7 @@ implicit none
   real(kind=C_K2)::lUDy,lVDx,lnu,lAr
   real(kind=C_K2)::lTxx(9),lTxy(9),lTyy(9),lTyx(9)
 
-  integer(kind=C_K1)::iel, k, j, na(9)  
+  integer(kind=C_K1)::iel, k, j, na(9), lna
   integer(kind=C_K1)::i1, j1
 
   !$acc parallel loop gang vector default(present) private(k)
@@ -553,11 +553,13 @@ implicit none
   !!$OMP     lUDy,lVDx,lnu,lAr,lTxx,lTxy,lTyx,lTyy)
 
   !$acc parallel loop default(present) gang vector vector_length(32) &
+  !!$acc parallel loop default(present) gang worker &
+  !!$acc   num_workers(32) vector_length(1) &
   !$acc   private(iel,k,j,lU,lV,lH,lSc,lAr,na,locjvf9x9,lJacb) &
   !$acc   private(lUDx,lUDy,lVDx,lVDy) &
   !$acc   private(lnu,lTxx,lTxy,lTyx,lTyy,shFX,shFY) &
-  !$acc   private(lN,lN21,lN22,lN26,lN36, i1, j1)
-  do iel=1,nele
+  !$acc   private(lN,lN21,lN22,lN26,lN36, i1, j1, lna)
+  do iel=1,nele    
     na=conn(iel,:)
     lJacb=jacb(iel)    
     lAr=eleArea(iel)
@@ -566,23 +568,47 @@ implicit none
     lH=ht1(na)
     locjvf9x9=elejvf9x9(iel,:)
     
-    lUDx=0d0    
-    lVDy=0d0        
+    !lUDx=0d0    
+    !lVDy=0d0        
     lTxx=0d0
     lTxy=0d0
     lTyx=0d0
     lTyy=0d0
+
+    ! do k=1,9
+    !   lna = conn(iel,k)
+    !   na(k) = lna
+    !   lU(k) = ut1(lna)
+    !   lV(k) = vt1(lna)
+    !   lH(k) = ht1(lna)      
+      
+    !   lUDx(k) = 0d0    
+    !   lVDy(k) = 0d0        
+    !   lTxx(k) = 0d0
+    !   lTxy(k) = 0d0
+    !   lTyx(k) = 0d0
+    !   lTyy(k) = 0d0
+
+    !   shFX(:,k) = shFE(:,k)*lJacb%D11(k) + shFN(:,k)*lJacb%D12(k)
+    !   shFY(:,k) = shFE(:,k)*lJacb%D21(k) + shFN(:,k)*lJacb%D22(k)
+    ! enddo
+
     do k=1,9
       shFX(:,k) = shFE(:,k)*lJacb%D11(k) + shFN(:,k)*lJacb%D12(k)
       shFY(:,k) = shFE(:,k)*lJacb%D21(k) + shFN(:,k)*lJacb%D22(k)
       
-      lUDy=0d0
-      lVDx=0d0
+      lUDx(k) = 0d0
+      lUDy = 0d0
+      lVDx = 0d0
+      lVDy(k) = 0d0
       do j=1,9
         lUDx(k)=lUDx(k)+(shFX(j,k)*lU(j))
         lVDy(k)=lVDy(k)+(shFY(j,k)*lV(j))
         lUDy=lUDy+(shFY(j,k)*lU(j))
         lVDx=lVDx+(shFX(j,k)*lV(j))
+
+        !j1 = (k-1)*9 + j
+        !locjvf9x9(j1)=elejvf9x9(iel,j1)
       enddo
 
       lnu=smCsSq*lAr &
@@ -594,33 +620,37 @@ implicit none
             
     enddo    
 
-    lN21=0d0
+    !lN21=0d0
     call calcMatT2ACC(shW,lJacb%D,lU,shF,shFX,lN)    
-    lN21=lN21+lN
+    lN21=lN
     call calcMatT2ACC(shW,lJacb%D,lUDx,shF,shF,lN)    
     lN21=lN21+lN
 
-    lN22=0d0
+    !lN22=0d0
     call calcMatT2ACC(shW,lJacb%D,lV,shF,shFY,lN)    
-    lN22=lN22+lN
+    !lN22=lN22+lN
+    lN21=lN21+lN
     call calcMatT2ACC(shW,lJacb%D,lVDy,shF,shF,lN)    
-    lN22=lN22+lN
+    !lN22=lN22+lN
+    lN21=lN21+lN
 
     lSc=lH/rhoW
     call calcMatT2ACC(shW,lJacb%D,lSc,shF,shFX,lN26)
     call calcMatT2ACC(shW,lJacb%D,lSc,shF,shFY,lN36)
     
 
-    ! 9x9        
-    ! do k = 1,81
-    !   j = locjvf9x9(k)
-    !   !$acc atomic update
-    !   gD21(j) = gD21(j) - ( lN21(k) + lN22(k) )
-    !   !$acc atomic update
-    !   gD25(j) = gD25(j) - ( lN26(k) )
-    !   !$acc atomic update
-    !   gD35(j) = gD35(j) - ( lN36(k) )      
-    ! enddo      
+    ! 9x9    
+    ! !$acc loop vector 
+    do k = 1,81
+      j = locjvf9x9(k)
+      !$acc atomic update
+      gD21(j) = gD21(j) - ( lN21(k) )
+      !gD21(j) = gD21(j) - ( lN21(k) + lN22(k) )
+      !$acc atomic update
+      gD25(j) = gD25(j) - ( lN26(k) )
+      !$acc atomic update
+      gD35(j) = gD35(j) - ( lN36(k) )      
+    enddo            
     do k = 1,9
       j = na(k)      
       !$acc atomic update
@@ -631,18 +661,30 @@ implicit none
       gTyx(j) = gTyx(j) - lTyx(k)
       !$acc atomic update
       gTyy(j) = gTyy(j) - lTyy(k)
-
-      do i1 = 1, 9
-        j1 = (k-1)*9 + i1
-        j = locjvf9x9(j1)
-        !$acc atomic update
-        gD21(j) = gD21(j) - ( lN21(j1) + lN22(j1) )
-        !$acc atomic update
-        gD25(j) = gD25(j) - ( lN26(j1) )
-        !$acc atomic update
-        gD35(j) = gD35(j) - ( lN36(j1) )      
-      enddo
     enddo
+
+    ! do k = 1,9
+    !   j = na(k)      
+    !   !$acc atomic update
+    !   gTxx(j) = gTxx(j) - lTxx(k)
+    !   !$acc atomic update
+    !   gTxy(j) = gTxy(j) - lTxy(k)
+    !   !$acc atomic update
+    !   gTyx(j) = gTyx(j) - lTyx(k)
+    !   !$acc atomic update
+    !   gTyy(j) = gTyy(j) - lTyy(k)
+
+    !   do i1 = 1, 9
+    !     j1 = (k-1)*9 + i1
+    !     j = locjvf9x9(j1)
+    !     !$acc atomic update
+    !     gD21(j) = gD21(j) - ( lN21(j1) + lN22(j1) )
+    !     !$acc atomic update
+    !     gD25(j) = gD25(j) - ( lN26(j1) )
+    !     !$acc atomic update
+    !     gD35(j) = gD35(j) - ( lN36(j1) )      
+    !   enddo
+    ! enddo
 
   enddo
 
@@ -798,7 +840,8 @@ implicit none
   ! jxTil = 0d0
   ! jyTil = 0d0
 
-  !$acc parallel loop default(present) gang vector &
+  !$acc parallel loop default(present) gang worker &
+  !$acc   num_workers(4) vector_length(16) &
   !$acc   private(k, j, neid, etaDx, etaDy, lDep) 
   do k = 1, npt    
 
@@ -807,6 +850,7 @@ implicit none
     lDep = dep(k)
     etaDx = 0d0    
     etaDy = 0d0    
+    !$acc loop vector
     do j = 1, pObj(k)%nn
       neid = pObj(k)%neid(j)
       etaDx = etaDx + pObj(k)%phiDx(j)*eta(neid)

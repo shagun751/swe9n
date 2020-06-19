@@ -19,7 +19,7 @@ else ifeq ($(COMPILER),pgfortran)
 	C_COMP=pgfortran	
 	CUDA_CHK = -Mcuda=ptxinfo
 	GPU_FLAG = -ta=tesla:cc60,pinned
-	PARA_FLAGS=-fast -Minfo=accel $(CUDA_CHK) $(GPU_FLAG)
+	PARA_FLAGS=-fast -acc -Minfo=accel $(CUDA_CHK) $(GPU_FLAG)
 endif
 
 MAIN=swe9n
