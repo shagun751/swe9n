@@ -1038,6 +1038,9 @@ implicit none
         
     !! Output
     if(mod(itime,fileOut).eq.0) then                      
+
+      !$acc update self(pr, windTx, windTy)
+      
       call out4NXML(probname,npl,npt,nele,ifl(3),itime,&
         conn,lon,lat,p,q,eta,dep,wetpoi,pr,windTx,windTy,pObj)
     endif

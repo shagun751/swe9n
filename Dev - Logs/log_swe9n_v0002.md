@@ -51,7 +51,7 @@
 | :------- |  :----- | :------- | :-------- | :--- | :------- | :------ | :---- |
 | pgfortran | -fast |  | 1 | No | 966.94 | 1.00x |  |
 | gfortran | -O3  | OpenMP | 8 | No | 519.61 | 1.86x | commit: 27d4f79 | 
-| pgfortran | -fast  | CUDA | 1 | Yes | 360.50 | 2.68x | commit: this | 
+| pgfortran | -fast  | CUDA | 1 | Yes | 360.50 | 2.68x | commit: c4c2b09 | 
 
 Results were checked to match point to point in serial, OpenMP and GPU run using two probes giving elevation, velX and velY.
 
