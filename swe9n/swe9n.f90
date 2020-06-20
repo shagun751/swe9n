@@ -690,8 +690,15 @@ implicit none
   write(ifl(5),'(5A12)')'Time(s)','Probei','ProbeiEta',&
     'ProbeiP','ProbeiQ'
 
+  call system_clock(sysClk(3))  
+  write(tf,'(" [SPD] ",A,F15.6)')"Duration before time-loop :",&
+    (sysClk(3)-sysClk(1))/sysRate
+  write(tf,*)
+  write(tf,*)
+
   !$acc enter data copyin(conn, jacb, shF, shFE, shFN, shW)
   !$acc enter data copyin(eleArea, elejvf9x9)
+  !$acc enter data copyin(lon, lat, coorx, coory, coriF)
 
   !$acc enter data copyin(dep, eta, etat1, etat2)
   !$acc enter data copyin(etat1sq, etat0sq, etaImp, etaTWei)
@@ -700,8 +707,7 @@ implicit none
   !$acc enter data copyin(ht0, ut0, vt0, uMagt0)
   !$acc enter data create(gR1, gR2, gR3, gR4, gR5, gR6, gR7)
   !$acc enter data copyin(jxt1, jyt1, jxTilt1, jyTilt1)
-  !$acc enter data copyin(pObj)
-  !$acc enter data copyin(wvIn)
+  !$acc enter data copyin(pObj, wvIn)  
 
   !$acc enter data copyin(bnd11p, bnd12p, bnd14p, bndpNm)
   !$acc enter data copyin(gE12, gE41, gE42, gE43, gE81)
@@ -770,7 +776,7 @@ implicit none
     write(tf,'(" [CYC] ",A15,2F15.6)')"Position :",windLon(1),windLat(1)
     write(tf,'(" [CYC] ",A15,F15.6)')"Max Wind :",windWm(1)
     
-    call system_clock(sysClk(6))        
+    call system_clock(sysClk(6))
     ! call GWCErh2(npt,nele,nnzt,conn,jacb,shF,shFE,shFN,&
     !   shW,eleArea,elejvf9x9,ht1,ut1,vt1,gD21,gD25,gD35,&
     !   gTxx,gTxy,gTyx,gTyy)                
@@ -779,10 +785,15 @@ implicit none
       gTxx,gTxy,gTyx,gTyy)                
     call system_clock(sysClk(7))
 
+    call system_clock(sysClk(8))
     !! Cyclone wind            
-    call windNew4b(windDragForm,RedFacW,RedFacP,dt,npt,lon,lat,&
+    ! call windNew4b(windDragForm,RedFacW,RedFacP,dt,npt,lon,lat,&
+    !   coorx,coory,windLon(2:4),windLat(2:4),windR0(2:4),coriF,&
+    !   windWm(2:4),windA,windB,pr,windTx,windTy)    
+    call windNew4bACC(windDragForm,RedFacW,RedFacP,dt,npt,lon,lat,&
       coorx,coory,windLon(2:4),windLat(2:4),windR0(2:4),coriF,&
       windWm(2:4),windA,windB,pr,windTx,windTy)    
+    call system_clock(sysClk(9))
 
     ! gR1=0d0
     ! gR2=0d0
@@ -791,7 +802,7 @@ implicit none
     ! gR5=0d0    
 
     !!$acc update device(gD21, gD25, gD35)
-    !$acc update device(windTx, windTy, pr)
+    !!$acc update device(windTx, windTy, pr)
     !!$acc update device(gTxx, gTxy, gTyx, gTyy)
 
     !! Solving for Jx and Jy
@@ -945,13 +956,16 @@ implicit none
       ht0, ut0, vt0, jxTilt1, jyTilt1, bnTx, bnTy, bnObc)    
 
     !! Cyclone wind        
-    call windNew4b(windDragForm,RedFacW,RedFacP,dt,npt,lon,lat,&
+    ! call windNew4b(windDragForm,RedFacW,RedFacP,dt,npt,lon,lat,&
+    !   coorx,coory,windLon(1:3),windLat(1:3),windR0(1:3),coriF,&
+    !   windWm(1:3),windA,windB,pr,windTx,windTy)     
+    call windNew4bACC(windDragForm,RedFacW,RedFacP,dt,npt,lon,lat,&
       coorx,coory,windLon(1:3),windLat(1:3),windR0(1:3),coriF,&
       windWm(1:3),windA,windB,pr,windTx,windTy)     
 
     !$acc update device(bnTx, bnTy, bnObc)
     !!$acc update device(gD21, gD25, gD35)
-    !$acc update device(windTx, windTy, pr)
+    !!$acc update device(windTx, windTy, pr)
     !!$acc update device(gTxx, gTxy, gTyx, gTyy)
 
     !! Corrector for P and Q  
@@ -1041,14 +1055,16 @@ implicit none
     call system_clock(sysClk(5))
     tmpr1=(sysClk(5)-sysClk(2))/sysRate
     tmpr2=(sysClk(7)-sysClk(6))/sysRate
+    tmpr3=(sysClk(9)-sysClk(8))/sysRate
     write(tf,'(" [SPD] ",A15,3F15.6)')"TimStp Time :",&
-      tmpr1,2d0*tmpr2,2d0*tmpr2/tmpr1*100d0
+      tmpr1, 2d0*tmpr2/tmpr1*100d0, 2d0*tmpr3/tmpr1*100d0
     write(tf,*)
 
   enddo
 
   !$acc exit data delete(conn, jacb, shF, shFE, shFN, shW)
   !$acc exit data delete(eleArea, elejvf9x9)
+  !$acc exit data delete(lon, lat, coorx, coory, coriF)
 
   !$acc exit data delete(dep, eta, etat1, etat2)
   !$acc exit data delete(etat1sq, etat0sq, etaImp, etaTWei)
@@ -1057,8 +1073,7 @@ implicit none
   !$acc exit data delete(ht0, ut0, vt0, uMagt0)
   !$acc exit data delete(gR1, gR2, gR3, gR4, gR5, gR6, gR7)
   !$acc exit data delete(jxt1, jyt1, jxTilt1, jyTilt1)
-  !$acc exit data delete(pObj)
-  !$acc exit data delete(wvIn)
+  !$acc exit data delete(pObj, wvIn)    
 
   !$acc exit data delete(bnd11p, bnd12p, bnd14p, bndpNm)
   !$acc exit data delete(gE12, gE41, gE42, gE43, gE81)

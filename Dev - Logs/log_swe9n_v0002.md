@@ -6,13 +6,54 @@
 1. [Tuning num_workers and vector_length [2020-06-18]](#log_swe9n_v0002_4)
 1. [Issue with GWCErh2() [2020-06-20]](#log_swe9n_v0002_5)
 1. [Limitations of Quadro P620 GPU-hardware [2020-06-20]](#log_swe9n_v0002_6)
+1. [GPU parallel windNew4b() [2020-06-21]](#log_swe9n_v0002_7)
 
 ### Attempting
 - OpenACC directives based GPU parallelisation
 
 
 ### List of Work
-- [ ] To be added
+- [x] _windNew4b()_ to GPU
+- [ ] _bndInt()_ to GPU - boundary integral
+- [ ] _inletBC()_ to GPU
+- [ ] _openBC2()_ to GPU
+
+-----------------------------------------------
+
+<a name = 'log_swe9n_v0002_7' ></a>
+
+### GPU parallel windNew4b() [2020-06-21]
+- The OpenACC modified function is called _windNew4bACC()_
+- Simple data transfer in the beginning of time loop regarding lon. lat. coorx. coory, etc. 
+- Still doing copyin before the loop for secLim, secInt, windLon, windLat.
+- Simple `gang vector` clause.
+- Run time from **GPU TestCase1 wallTime = 25.70s** to **GPU TestCase1 wallTime = 21.20s**
+- Speedup over serial is from **Serial TestCase1 wallTime = 54.65s** to **GPU TestCase1 wallTime = 21.20s**, which is **2.57x**.
+- Time distribution (after removing the run-time for steps before time-loop) :
+
+| Code | % Time | 
+| :--- | -----: |
+| GPU _windNew4bACC_ | 5.0% |
+| GPU _GWCErh2()_ | 55.3% |
+| GPU _obcCalcJxTil_ | 5.0% |
+| GPU Solving Jx Jy | 5.1% |
+| GPU Predictor | 6.1% |
+| GPU Corrector | 10.4% |
+|  |  |
+| **Total** | **86.9%** |
+| Total Counted GPU time | 93.7% |
+
+<br>
+
+#### Long Tamil Nadu Test
+
+| Compiler | Options | Parallel | CPU Cores | GPU | Time (s) | Speedup |Remark |
+| :------- |  :----- | :------- | :-------- | :--- | :------- | :------ | :---- |
+| pgfortran | -fast |  | 1 | No | 966.94 | 1.00x |  |
+| gfortran | -O3  | OpenMP | 8 | No | 519.61 | 1.86x | commit: 27d4f79 | 
+| pgfortran | -fast  | CUDA | 1 | Yes | 360.50 | 2.68x | commit: this | 
+
+Results were checked to match point to point in serial, OpenMP and GPU run using two probes giving elevation, velX and velY.
 
 -----------------------------------------------
 
@@ -31,8 +72,10 @@
 | Test Laplacian CPU PGI Serial <br> 53.6s | Test Laplacian CPU PGI Serial <br> 27.9s |
 | Test Laplacian GPU PGI <br> 1.1s | Test Laplacian GPU PGI <br> 9.2s |
 | Test Laplacian GPU/Serial <br> 48.7x | Test Laplacian GPU/Serial <br> 3.0x |
+| **Spec Floating point performance** <br> 14029 glops | **Spec Floating point performance** <br> 1490 glops |
 
 - From the above table we can conclude that the GPU in Dhruv's system is too weak and CPU is too strong, due to which even for a simple laplacian case we get only 3x speed-up compared to serial.
+- Note that the floating point performance of Tesla is 10x Quadro's, which is a major factor!
 - As of now, the code written for GPU when run in serial has run-time **Serial TestCase1 wallTime = 54.65s** and **GPU TestCase1 wallTime = 25.70s**, which is 2.12x speedup.
 - If I hit close to 3x then I can assume that I have hit the max speed-up possible with this hardware given the results from laplacian test.
 - The changes that have been made in _GWCErh2()_ to make it run well on GPU might also help with run-time in OpenMP.

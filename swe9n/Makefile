@@ -43,4 +43,7 @@ clean:
 
 run:
 	PGI_ACC_TIME=1 ./swe sqB
+
+profile:
+	nsys profile -t openacc --stats=true --force-overwrite true -o swe ./swe sqB
 	
