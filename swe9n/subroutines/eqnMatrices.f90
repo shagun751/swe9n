@@ -523,14 +523,16 @@ implicit none
   real(kind=C_K2),intent(out)::gTyy(npt),gTyx(npt)
   real(kind=C_K2)::lN(81),lN21(81),lN22(81)
   real(kind=C_K2)::lN26(81),lN36(81)
+  real(kind=C_K2)::lN00(81)
   real(kind=C_K2)::shFX(9,9),shFY(9,9)
   real(kind=C_K2)::lU(9),lV(9),lH(9)
   real(kind=C_K2)::lUDx(9),lVDy(9),lSc(9)
   real(kind=C_K2)::lUDy,lVDx,lnu,lAr
-  real(kind=C_K2)::lTxx(9),lTxy(9),lTyy(9),lTyx(9)
+  real(kind=C_K2)::lTxx,lTxy,lTyy,lTyx
+  real(kind=C_K2)::tr0,tr1,tr2,tr3,tr4
+  real(kind=C_K2)::trSc1,trSc2,trSc3,trSc4
 
-  integer(kind=C_K1)::iel, k, j, na(9), lna
-  integer(kind=C_K1)::i1, j1
+  integer(kind=C_K1)::iel, i, j, k, l, i2, na(9)
 
   !$acc parallel loop gang vector default(present) private(k)
   do k = 1, nnzt
@@ -555,10 +557,11 @@ implicit none
   !$acc parallel loop default(present) gang vector vector_length(32) &
   !!$acc parallel loop default(present) gang worker &
   !!$acc   num_workers(32) vector_length(1) &
-  !$acc   private(iel,k,j,lU,lV,lH,lSc,lAr,na,locjvf9x9,lJacb) &
-  !$acc   private(lUDx,lUDy,lVDx,lVDy) &
-  !$acc   private(lnu,lTxx,lTxy,lTyx,lTyy,shFX,shFY) &
-  !$acc   private(lN,lN21,lN22,lN26,lN36, i1, j1, lna)
+  !$acc   private(iel,i,j,k,l,i2,lU,lV,lH,lSc,lAr,na) &
+  !$acc   private(locjvf9x9,lJacb,lUDx,lUDy,lVDx,lVDy) &
+  !$acc   private(lnu,lTxx,lTxy,lTyy,shFX,shFY) &
+  !$acc   private(lN) &
+  !$acc   private(tr0,tr1,tr2,tr3,tr4,trSc1,trSc2,trSc3,trSc4)
   do iel=1,nele    
     na=conn(iel,:)
     lJacb=jacb(iel)    
@@ -570,10 +573,10 @@ implicit none
     
     !lUDx=0d0    
     !lVDy=0d0        
-    lTxx=0d0
-    lTxy=0d0
-    lTyx=0d0
-    lTyy=0d0
+    ! lTxx=0d0
+    ! lTxy=0d0
+    ! lTyx=0d0
+    ! lTyy=0d0
 
     ! do k=1,9
     !   lna = conn(iel,k)
@@ -613,79 +616,88 @@ implicit none
 
       lnu=smCsSq*lAr &
         *dsqrt(0.5d0*(lUDy+lVDx)**2 + lUDx(k)**2 + lVDy(k)**2)
-      lTxx=lTxx+(shW(k)*shFX(:,k)*lH(k)*2d0*lnu*lUDx(k)*lJacb%D(k))
-      lTxy=lTxy+(shW(k)*shFY(:,k)*lH(k)*lnu*(lUDy+lVDx)*lJacb%D(k))
-      lTyx=lTyx+(shW(k)*shFX(:,k)*lH(k)*lnu*(lUDy+lVDx)*lJacb%D(k))
-      lTyy=lTyy+(shW(k)*shFY(:,k)*lH(k)*2d0*lnu*lVDy(k)*lJacb%D(k))
-            
+
+      lTxx = (shW(k)*lH(k)*2d0*lnu*lUDx(k)*lJacb%D(k))
+      lTxy = (shW(k)*lH(k)*lnu*(lUDy+lVDx)*lJacb%D(k))
+      lTyy = (shW(k)*lH(k)*2d0*lnu*lVDy(k)*lJacb%D(k))
+
+      do j = 1, 9
+        l = na(j)
+        !$acc atomic update
+        gTxx(l) = gTxx(l) - lTxx*shFX(j,k)
+        !$acc atomic update
+        gTxy(l) = gTxy(l) - lTxy*shFY(j,k)
+        !$acc atomic update
+        gTyx(l) = gTyx(l) - lTxy*shFX(j,k)
+        !$acc atomic update
+        gTyy(l) = gTyy(l) - lTyy*shFY(j,k)        
+      enddo
+
+      ! lTxx=lTxx+(shW(k)*shFX(:,k)*lH(k)*2d0*lnu*lUDx(k)*lJacb%D(k))
+      ! lTxy=lTxy+(shW(k)*shFY(:,k)*lH(k)*lnu*(lUDy+lVDx)*lJacb%D(k))
+      ! lTyx=lTyx+(shW(k)*shFX(:,k)*lH(k)*lnu*(lUDy+lVDx)*lJacb%D(k))
+      ! lTyy=lTyy+(shW(k)*shFY(:,k)*lH(k)*2d0*lnu*lVDy(k)*lJacb%D(k))            
     enddo    
 
-    !lN21=0d0
-    call calcMatT2ACC(shW,lJacb%D,lU,shF,shFX,lN)    
-    lN21=lN
-    call calcMatT2ACC(shW,lJacb%D,lUDx,shF,shF,lN)    
-    lN21=lN21+lN
+    lN=0d0
+    do i2=1,9 !Looping over integration pts      
+      tr0 = shW(i2) * lJacb%D(i2)
+      trSc1 = lU(i2)
+      trSc2 = lUDx(i2)
+      trSc3 = lV(i2)
+      trSc4 = lVDy(i2)
+      do i=1,9
+        do j=1,9
+          l=(i-1)*9+j
+          tr1 = tr0 * trSc1 * shF(i,i2) * shFX(j,i2)
+          tr2 = tr0 * trSc2 * shF(i,i2) * shF(j,i2)
+          tr3 = tr0 * trSc3 * shF(i,i2) * shFY(j,i2)
+          tr4 = tr0 * trSc4 * shF(i,i2) * shF(j,i2)          
 
-    !lN22=0d0
-    call calcMatT2ACC(shW,lJacb%D,lV,shF,shFY,lN)    
-    !lN22=lN22+lN
-    lN21=lN21+lN
-    call calcMatT2ACC(shW,lJacb%D,lVDy,shF,shF,lN)    
-    !lN22=lN22+lN
-    lN21=lN21+lN
-
-    lSc=lH/rhoW
-    call calcMatT2ACC(shW,lJacb%D,lSc,shF,shFX,lN26)
-    call calcMatT2ACC(shW,lJacb%D,lSc,shF,shFY,lN36)
-    
-
-    ! 9x9    
-    ! !$acc loop vector 
+          lN(l)=lN(l) + tr1 + tr2 + tr3 + tr4
+        enddo
+      enddo
+    enddo
+        
     do k = 1,81
       j = locjvf9x9(k)
       !$acc atomic update
-      gD21(j) = gD21(j) - ( lN21(k) )
-      !gD21(j) = gD21(j) - ( lN21(k) + lN22(k) )
-      !$acc atomic update
-      gD25(j) = gD25(j) - ( lN26(k) )
-      !$acc atomic update
-      gD35(j) = gD35(j) - ( lN36(k) )      
+      gD21(j) = gD21(j) - ( lN(k) )      
     enddo            
-    do k = 1,9
-      j = na(k)      
-      !$acc atomic update
-      gTxx(j) = gTxx(j) - lTxx(k)
-      !$acc atomic update
-      gTxy(j) = gTxy(j) - lTxy(k)
-      !$acc atomic update
-      gTyx(j) = gTyx(j) - lTyx(k)
-      !$acc atomic update
-      gTyy(j) = gTyy(j) - lTyy(k)
-    enddo
 
-    ! do k = 1,9
-    !   j = na(k)      
-    !   !$acc atomic update
-    !   gTxx(j) = gTxx(j) - lTxx(k)
-    !   !$acc atomic update
-    !   gTxy(j) = gTxy(j) - lTxy(k)
-    !   !$acc atomic update
-    !   gTyx(j) = gTyx(j) - lTyx(k)
-    !   !$acc atomic update
-    !   gTyy(j) = gTyy(j) - lTyy(k)
 
-    !   do i1 = 1, 9
-    !     j1 = (k-1)*9 + i1
-    !     j = locjvf9x9(j1)
-    !     !$acc atomic update
-    !     gD21(j) = gD21(j) - ( lN21(j1) + lN22(j1) )
-    !     !$acc atomic update
-    !     gD25(j) = gD25(j) - ( lN26(j1) )
-    !     !$acc atomic update
-    !     gD35(j) = gD35(j) - ( lN36(j1) )      
+    ! lN=0d0
+    ! lN00=0d0
+    ! do i2=1,9 !Looping over integration pts      
+    !   tr0 = shW(i2) * lJacb%D(i2)
+    !   trSc1 = lH(i2)/rhoW
+    !   do i=1,9
+    !     do j=1,9
+    !       l=(i-1)*9+j
+          
+    !       lN(l)=lN(l) &
+    !         + (tr0 * trSc1 * shF(i,i2) * shFX(j,i2))
+    !       lN00(l)=lN00(l) &
+    !         + (tr0 * trSc1 * shF(i,i2) * shFY(j,i2))
+    !     enddo
     !   enddo
     ! enddo
 
+    lSc=lH/rhoW
+    call calcMatT2ACC(shW,lJacb%D,lSc,shF,shFX,lN)    
+    do k = 1,81
+      j = locjvf9x9(k)
+      !$acc atomic update
+      gD25(j) = gD25(j) - ( lN(k) )      
+    enddo            
+    
+    call calcMatT2ACC(shW,lJacb%D,lSc,shF,shFY,lN)
+    do k = 1,81
+      j = locjvf9x9(k)
+      !$acc atomic update
+      gD35(j) = gD35(j) - ( lN(k) )      
+    enddo            
+    
   enddo
 
 end subroutine GWCErh2ACC

@@ -18,6 +18,7 @@
 - [x] Airy wave module
 - [x] Open BC - unidirectional tested
 - [ ] Open BC - oblique tested
+- [ ] Modify GWCErh2() as done in GPU code to check speedup
 
 -----------------------------------------------
 

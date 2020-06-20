@@ -3,7 +3,9 @@
 1. [Comparison of speeds [2020-06-17]](#log_swe9n_v0002_1)
 1. [OpenACC for Time-Loop Attempt 1 [2020-06-17][2020-06-18]](#log_swe9n_v0002_2)
 1. [OpenACC for GWCErh2() [2020-06-18]](#log_swe9n_v0002_3)
-1. [Tuning num_workers and vector_length [2020-06-17]](#log_swe9n_v0002_4)
+1. [Tuning num_workers and vector_length [2020-06-18]](#log_swe9n_v0002_4)
+1. [Issue with GWCErh2() [2020-06-20]](#log_swe9n_v0002_5)
+1. [Limitations of Quadro P620 GPU-hardware [2020-06-20]](#log_swe9n_v0002_6)
 
 ### Attempting
 - OpenACC directives based GPU parallelisation
@@ -14,9 +16,70 @@
 
 -----------------------------------------------
 
+<a name = 'log_swe9n_v0002_6' ></a>
+
+### Limitations of Quadro P620 GPU-hardware [2020-06-20]
+- The OpenACC bootcamp was using 'Tesla V100-SXM2-16GB' GPU
+- On the current system we are using 'Quadro P620'
+
+| Boocamp system | Dhruv system |
+| :------------- | :----------- |
+| CPU <br> Unknown | CPU <br> i7-7700 CPU @ 3.60GHz |
+| GPU <br> Tesla V100-SXM2-16GB | GPU <br> Quadro P620 2GB |
+| GPU Number of Multiprocessors <br> 80 | GPU Number of Multiprocessors <br> 4 |
+| GPU Clock <br> 1.53 GHz | GPU Clock <br> 1.35 GHz |
+| Test Laplacian CPU PGI Serial <br> 53.6s | Test Laplacian CPU PGI Serial <br> 27.9s |
+| Test Laplacian GPU PGI <br> 1.1s | Test Laplacian GPU PGI <br> 9.2s |
+| Test Laplacian GPU/Serial <br> 48.7x | Test Laplacian GPU/Serial <br> 3.0x |
+
+- From the above table we can conclude that the GPU in Dhruv's system is too weak and CPU is too strong, due to which even for a simple laplacian case we get only 3x speed-up compared to serial.
+- As of now, the code written for GPU when run in serial has run-time **Serial TestCase1 wallTime = 54.65s** and **GPU TestCase1 wallTime = 25.70s**, which is 2.12x speedup.
+- If I hit close to 3x then I can assume that I have hit the max speed-up possible with this hardware given the results from laplacian test.
+- The changes that have been made in _GWCErh2()_ to make it run well on GPU might also help with run-time in OpenMP.
+
+-----------------------------------------------
+
+<a name = 'log_swe9n_v0002_5' ></a>
+
+### Issue with GWCErh2() [2020-06-20]
+- Probable issue is spillover. Check the following output when I run the code in the current state.
+
+```
+ptxas info    : Compiling entry function 'gwcerh2acc_555_gpu' for 'sm_60'
+ptxas info    : Function properties for gwcerh2acc_555_gpu
+    5096 bytes stack frame, 5816 bytes spill stores, 5800 bytes spill loads
+ptxas info    : Used 255 registers, 488 bytes cmem[0], 28 bytes cmem[2]
+```
+
+- There is spillover that I missed noticing!
+- It is understandable given how many provate variables are needed in this.
+- Removed the lTxx(9), lTxy(9), lTyx(9), lTyy(9). This alone gained around 1s.
+- Removed the lN21(81), lN22(81), lN26(81), lN36(81) and replaced with just lN(81) and lN00(81). This made major change by reducing spill.
+- eqnMatrices.f90  555 : Main loop <br> 15.00s to 13.15s
+- A lot of the spill is due to the _calcMatT2ACC()_ subroutine being called. I don't think there is a way around copying and pasting this part of the code instead of the function call.
+    - From this [article](https://stackoverflow.com/questions/39924736/how-can-a-fortran-openacc-routine-call-another-fortran-openacc-routine), the response from PGI seems to say that a function call leads to temporary variables creation in OpenACC, I think.
+    - So this will always cause spill over.
+    - Copy pasting the code will avoid this.
+- After doing this for 4 of the calls and removing lN00(81) too there was a gain of 2.4s.
+- eqnMatrices.f90  555 : Main loop <br> 15.00s to 10.85s
+- Copy pasting the other two calls to calcMatT2ACC leads to more spill and longer execution time by 0.5s.
+    - The gain was not due to removing this function call, but instead because of the removal of lN00, lN21, lN22, lN26, lN36.
+- Another interesting thing to note is that currently I am running gang vector. But if I change to gang worker + vector, then the spill is 0, but the execution time is 87s instead of 10.85s.
+
+Current status
+
+- Everything other than wind and BC are GPU parallel
+- Wall time improved from **TestCase1 wallTime = 29.80s** to **TestCase1 wallTime = 25.70s**
+- Out of 25.70s, 17.70s is measured as GPU time. GWCErh2() still takes 10.90s (42%)
+- Around 0.8s is the one time tasks in CPU before time-loop.
+- Remaining 7 secs seems to be on CPU for the rest.
+- wind takes 21% of total run time.
+
+-----------------------------------------------
+
 <a name = 'log_swe9n_v0002_4' ></a>
 
-### Tuning num_workers and vector_length [2020-06-17]
+### Tuning num_workers and vector_length [2020-06-18]
 - A lot of gains can be made by playing around with gangs, workers and vectors.
 - This subroutine gives a good test case.
 - The basic thing i tried was which takes 4.56s for TestCase1.
