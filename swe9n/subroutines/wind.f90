@@ -531,7 +531,7 @@ end subroutine windNew4
 
 subroutine windNew4b(windDragForm,RedFacW,RedFacP,dt,npt,lon,lat,&
   coorx,coory,windLon,windLat,windR0,coriF,windWm,&
-  windA,windB,pr,windTx,windTy)
+  windA,windB,pr,windVx,windVy,windTx,windTy)
 use basicVars
 implicit none
 
@@ -543,6 +543,7 @@ implicit none
   real(kind=c_K2),intent(in)::windR0(3),windWm(3)  
   real(kind=c_K2),intent(in)::windA,windB,coriF(npt)
   real(kind=c_K2),intent(out)::windTx(npt),windTy(npt),pr(npt)
+  real(kind=c_K2),intent(out)::windVx(npt),windVy(npt)
   real(kind=c_K2)::windX0,windY0,windX0t1,windY0t1
   real(kind=c_K2)::stormSpX,stormSpY
   real(kind=c_K2)::rho,cd,rhoA,pDrop,pn,pc,dr,w,wx,wy
@@ -717,9 +718,13 @@ implicit none
 
     windTx(i)=rho*cd*w*(wx*csl-wy*snl)
     windTy(i)=rho*cd*w*(wy*csl+wx*snl)
+    windVx(i)=(wx*csl-wy*snl)
+    windVy(i)=(wy*csl+wx*snl)
     if(dr.gt.10d0*rMax)then
       windTx(i)=0d0
       windTy(i)=0d0
+      windVx(i)=0d0
+      windVy(i)=0d0
     endif
     
     pr(i)=pc+pDrop*dexp(-windA/tmpr2)

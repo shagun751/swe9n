@@ -1,5 +1,6 @@
 subroutine out4NXML(probname,npoinl,npoint,nelem,code,ts,&
-  conn,coorx,coory,u,v,eta,dep,wetpoi,pc,windTx,windTy,pObj)
+  conn,coorx,coory,u,v,eta,dep,wetpoi,pc,windVx,windVy,&
+  windTx,windTy,pObj)
 use meshFreeMod
 implicit none
   
@@ -12,6 +13,7 @@ implicit none
   real(kind=8),intent(in)::u(npoint),v(npoint),eta(npoint)
   real(kind=8),intent(in)::dep(npoint)  
   real(kind=8),intent(in)::pc(npoint),windTx(npoint),windTy(npoint)
+  real(kind=8),intent(in)::windVx(npoint),windVy(npoint)
   real(kind=8)::sDx,sDy
 
   type(mfPoiTyp),intent(in)::pObj(npoint)
@@ -60,6 +62,12 @@ implicit none
   write(code,'(T7,a)')'<DataArray type="Float64" Name="windSh" NumberOfComponents="3" format="ascii">'  
   do i=1,npoinl
     write(code,'(2F20.6,F4.1)')windTx(i),windTy(i),0d0
+  enddo
+  write(code,'(T7,a)')'</DataArray>'
+
+  write(code,'(T7,a)')'<DataArray type="Float64" Name="windVel" NumberOfComponents="3" format="ascii">'  
+  do i=1,npoinl
+    write(code,'(2F20.6,F4.1)')windVx(i),windVy(i),0d0
   enddo
   write(code,'(T7,a)')'</DataArray>'
 

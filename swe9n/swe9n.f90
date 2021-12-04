@@ -91,7 +91,8 @@ implicit none
   real(kind=C_K2),allocatable::gR1(:),gR2(:),gR3(:),gR4(:)
   real(kind=C_K2),allocatable::gR5(:),gR6(:),gR7(:)
   real(kind=C_K2),allocatable::spngC(:),coriF(:)
-  real(kind=C_K2),allocatable::windTx(:),windTy(:)
+  real(kind=C_K2),allocatable::windTx(:), windTy(:)
+  real(kind=C_K2),allocatable::windVx(:), windVy(:)
   real(kind=C_K2),allocatable::cycInf(:,:),pr(:),eleArea(:)
   real(kind=C_K2),allocatable::gTxx(:),gTxy(:),gTyx(:),gTyy(:)
   real(kind=C_K2),allocatable::bnTx(:),bnTy(:), bnObc(:)
@@ -482,6 +483,7 @@ implicit none
   allocate(wetpoi(npt),midpoi(npt))  
   allocate(spngC(npt),cour(npt))
   allocate(windTx(npt),windTy(npt),pr(npt))    
+  allocate(windVx(npt),windVy(npt))    
   !allocate(midObj(npt))
   allocate(pObj(npt))
 !!----------------------End Allocations-----------------------!!
@@ -682,7 +684,8 @@ implicit none
   ! call out4NXML(probname,npl,npt,nele,ifl(3),0,&
   !   conn,lon,lat,p,q,eta,dep,wetpoi,pr,windTx,windTy)
   call out4NXML(probname,npl,npt,nele,ifl(3),0,&
-    conn,lon,lat,p,q,eta,dep,wetpoi,pr,windTx,windTy,pObj)
+    conn,lon,lat,p,q,eta,dep,wetpoi,pr,windVx,windVy,&
+    windTx,windTy,pObj)
 
   !! Probe file
   text='Output/WaveProbe_'//probname(1:len_trim(probname))//'.dat'
@@ -742,7 +745,7 @@ implicit none
     !! Cyclone wind            
     call windNew4b(windDragForm,RedFacW,RedFacP,dt,npt,lon,lat,&
       coorx,coory,windLon(2:4),windLat(2:4),windR0(2:4),coriF,&
-      windWm(2:4),windA,windB,pr,windTx,windTy)    
+      windWm(2:4),windA,windB,pr,windVx,windVy,windTx,windTy)    
 
     gR1=0d0
     gR2=0d0
@@ -863,7 +866,7 @@ implicit none
     !! Cyclone wind        
     call windNew4b(windDragForm,RedFacW,RedFacP,dt,npt,lon,lat,&
       coorx,coory,windLon(1:3),windLat(1:3),windR0(1:3),coriF,&
-      windWm(1:3),windA,windB,pr,windTx,windTy)     
+      windWm(1:3),windA,windB,pr,windVx,windVy,windTx,windTy)     
 
     !! Corrector for P and Q  
     !! [Note] : Do not forget to multiply by dt here 
@@ -924,7 +927,8 @@ implicit none
     !! Output
     if(mod(itime,fileOut).eq.0) then            
       call out4NXML(probname,npl,npt,nele,ifl(3),itime,&
-        conn,lon,lat,p,q,eta,dep,wetpoi,pr,windTx,windTy,pObj)
+        conn,lon,lat,p,q,eta,dep,wetpoi,pr,windVx,windVy,&
+        windTx,windTy,pObj)
     endif
 
     !! Probe write
